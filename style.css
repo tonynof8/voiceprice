@@ -174,30 +174,12 @@
   justify-content: center;
   cursor: pointer;
 }
-  .file-icon:hover { background-color: #007aff; }
-.file-icon .loader {
-  display: none;                 /* ← важно */
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  box-sizing: border-box;
-  border: 3px solid rgba(255,255,255,.25);
-  border-top-color: var(--button-bg);
-  border-radius: 50%;
-  animation: spin .9s linear infinite;
-}
+.file-icon:hover { background-color: #007aff; }
 
 .file-icon .icon {
   font-size: 20px;
   line-height: 1;
   transition: opacity .15s ease;
-}
-
-.file-icon.loading .icon   { opacity: 0; }
-.file-icon.loading .loader { display: inline-block; }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
   /* --- INPUT WITH ICON --- */
@@ -502,4 +484,5 @@ html[data-theme="dark"] {
   opacity: 1;
   transform: translateY(0);
 }
+
 
