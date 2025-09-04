@@ -43,13 +43,13 @@
   <div class="input-with-icon">
     <input type="number" id="manualInput" placeholder="Введите количество слов" />
 
-    <div id="fileWrapper" class="file-icon tooltip-wrapper">
-      <label id="fileLabel" for="fileInput" style="all: unset; cursor: pointer;">
-        <span class="icon">📎</span>
-        <span class="loader hidden"></span>
-      </label>
-      <div class="tooltip-bubble">Загрузите .txt или .docx</div>
-    </div>
+<div id="fileWrapper" class="file-icon tooltip-wrapper">
+  <label id="fileLabel" for="fileInput" style="all: unset; cursor: pointer;">
+    <span class="icon">📎</span>
+    <span class="loader"></span> <!-- без hidden, управляем через .loading -->
+  </label>
+  <div class="tooltip-bubble">Загрузите .txt или .docx</div>
+</div>
 
     <input type="file" id="fileInput" accept=".txt,.docx" />
   </div>
@@ -179,34 +179,33 @@
     const file = e.target.files[0];
     if (!file) return;
 
-    const icon = document.querySelector('.file-icon .icon');
-    const loader = document.querySelector('.file-icon .loader');
-    icon.classList.add('hidden');
-    loader.classList.remove('hidden');
+  const wrapper = document.getElementById('fileWrapper');
 
-    const done = async (text) => {
-      try {
-        const count = await countBackend(text);
-        if (!isNaN(count) && count >= 1) {
-          manualInput.value = count;
-          calculate();  // ← автоматический запуск расчета
-        } else {
-          manualInput.value = 0;
-          alert("Файл не содержит слов!");
-        }
-      } catch (err) {
-        alert("Ошибка при подсчёте слов. Проверь файл.");
-      } finally {
-        icon.classList.remove('hidden');
-        loader.classList.add('hidden');
+  // показать спиннер
+  wrapper.classList.add('loading');
+
+  const done = async (text) => {
+    try {
+      const count = await countBackend(text);
+      if (!isNaN(count) && count >= 1) {
+        manualInput.value = count;
+        calculate();
+      } else {
+        manualInput.value = 0;
+        alert("Файл не содержит слов!");
       }
-    };
+    } catch (err) {
+      alert("Ошибка при подсчёте слов. Проверь файл.");
+    } finally {
+      // скрыть спиннер
+      wrapper.classList.remove('loading');
+    }
+  };
 
-    const fail = (msg) => {
-      icon.classList.remove('hidden');
-      loader.classList.add('hidden');
-      alert(msg);
-    };
+  const fail = (msg) => {
+    wrapper.classList.remove('loading');
+    alert(msg);
+  };
 
     if (file.name.endsWith('.txt')) {
       const reader = new FileReader();
@@ -460,4 +459,5 @@
   </footer>
 </body>
 </html>
+
 
