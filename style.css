@@ -140,6 +140,9 @@
   button:active { background-color: #0066cc; transform: scale(0.98); }
   
 
+/* универсальный хелпер */
+.hidden { display: none !important; }
+
   /* --- URGENT BUTTON --- */
   .urgent {
     background-color: #ff3b30;
@@ -160,26 +163,43 @@
     padding: var(--padding);
     margin-top: 10px;
   }
-  .file-icon {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    user-select: none;
-    font-size: 20px;
-    transition: background-color 0.25s;
-  }
+.file-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
   .file-icon:hover { background-color: #007aff; }
-  .file-icon .loader {
-    width: 20px; height: 20px;
-    border: 3px solid rgba(255,255,255,0.2);
-    border-top: 3px solid var(--button-bg);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-  
+.file-icon .loader {
+  display: none;                 /* ← важно */
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 3px solid rgba(255,255,255,.25);
+  border-top-color: var(--button-bg);
+  border-radius: 50%;
+  animation: spin .9s linear infinite;
+}
+
+.file-icon .icon {
+  font-size: 20px;
+  line-height: 1;
+  transition: opacity .15s ease;
+}
+
+.file-icon.loading .icon   { opacity: 0; }
+.file-icon.loading .loader { display: inline-block; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
   /* --- INPUT WITH ICON --- */
   .input-with-icon {
     display: flex;
@@ -482,3 +502,4 @@ html[data-theme="dark"] {
   opacity: 1;
   transform: translateY(0);
 }
+
