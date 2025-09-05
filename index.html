@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>Voiceprice | Быстрый расчет стоимости озвучки и перевода</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- style.css должен лежать рядом на GitHub Pages -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -33,7 +32,7 @@
       <option value="translate_voice">Перевод + озвучка видео</option>
       <option value="voice_camera">Озвучка текста на камеру</option>
     </select>
-
+  
     <div class="file-icon tooltip-wrapper">
       ❔
       <div id="tooltip" class="tooltip-bubble">Подсказка по услуге</div>
@@ -42,16 +41,18 @@
 
   <div class="input-with-icon">
     <input type="number" id="manualInput" placeholder="Введите количество слов" />
-
-<div id="fileWrapper" class="file-icon tooltip-wrapper">
-  <label id="fileLabel" for="fileInput" style="all: unset; cursor: pointer;">
-    <span class="icon">📎</span>
-  </label>
-  <div class="tooltip-bubble">Загрузите .txt или .docx</div>
-</div>
-
+  
+    <div id="fileWrapper" class="file-icon tooltip-wrapper">
+      <label id="fileLabel" for="fileInput" style="all: unset; cursor: pointer;">
+        <span class="icon">📎</span>
+        <span class="loader hidden"></span>
+      </label>
+      <div class="tooltip-bubble">Загрузите .txt или .docx</div>
+    </div>
+  
     <input type="file" id="fileInput" accept=".txt,.docx" />
   </div>
+  
 
   <button onclick="calculate()">Рассчитать</button>
   <button id="urgentBtn" class="urgent" onclick="applyUrgent()" style="display: none;">Срочно</button>
@@ -60,20 +61,16 @@
 
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
   <script>
-  // ====== НАСТРОЙКА БЭКЕНДА ======
-  // Укажи адрес Render (или свой кастомный домен API):
-  // пример: const API_BASE = "https://telegram-voicebot.onrender.com";
-  const API_BASE = "https://api.voiceprice.ru";
-
   let basePrice = 0;
   let urgent = false;
-
+  
   const manualInput = document.getElementById('manualInput');
   const serviceSelect = document.getElementById('serviceSelect');
   const fileLabel = document.getElementById('fileLabel');
   const urgentBtn = document.getElementById('urgentBtn');
   const resultBlock = document.getElementById('result');
-
+  const serviceTip = document.getElementById('serviceTip');
+  
   const serviceTips = {
     "voice_text": "⚡ Загрузите txt или docx, или укажите точное количество слов для озвучки. Все числа, сокращения и единицы должны быть записаны полностью — так, как вы хотите, чтобы их произнесли. Например: 32 м - тридцать два метра",
     "voice_video": "⏱️ Длительность видео небходимо вводить с округлением в большую степень. 6 минут 3 секунды => 7 минут",
@@ -81,13 +78,13 @@
     "translate_voice": "🌐 Длительность видео небходимо вводить с округлением в большую степень. 6 минут 3 секунды => 7 минут",
     "voice_camera": "📹 Загрузите txt или docx, или укажите точное количество слов для озвучки. Все числа, сокращения и единицы должны быть записаны полностью — так, как вы хотите, чтобы их произнесли. Например: 120 км → сто двадцать километров."
   };
-
+  
   // Обновление UI и сброс состояний
   function updateUI() {
     const allowFile = ['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value);
     const fileWrapper = document.getElementById("fileWrapper");
     fileWrapper.classList.toggle('hidden', !allowFile);
-
+  
     const ph = {
       'voice_text': 'Введите количество слов',
       'voice_video': 'Введите длительность видео (минуты)',
@@ -98,62 +95,67 @@
     manualInput.placeholder = ph[serviceSelect.value] || 'Введите вручную';
     document.getElementById("tooltip").textContent = serviceTips[serviceSelect.value] || "";
 
+  
     urgent = false;
     basePrice = 0;
     urgentBtn.style.display = 'none';
     resultBlock.innerText = '';
     manualInput.value = '';
   }
-
+  
   // --- Обработчики событий ---
   serviceSelect.addEventListener('change', updateUI);
+  
   manualInput.addEventListener('input', () => {
     urgent = false;
     basePrice = 0;
     urgentBtn.style.display = 'none';
     resultBlock.innerText = '';
   });
+  
   document.addEventListener("DOMContentLoaded", updateUI);
-
+  
   // --- DRAG AND DROP ---
-  const dropZone = document.getElementById('dropZone');
-  let dragCounter = 0;
 
-  window.addEventListener('dragenter', (e) => {
-    dragCounter++;
-    dropZone.classList.add('active');
-  });
+const dropZone = document.getElementById('dropZone');
+let dragCounter = 0;
 
-  window.addEventListener('dragleave', (e) => {
-    dragCounter--;
-    if (dragCounter <= 0) {
-      dropZone.classList.remove('active');
-    }
-  });
+window.addEventListener('dragenter', (e) => {
+  dragCounter++;
+  dropZone.classList.add('active');
+});
 
-  window.addEventListener('dragover', (e) => {
-    e.preventDefault();
-  });
-
-  window.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    dragCounter = 0;
+window.addEventListener('dragleave', (e) => {
+  dragCounter--;
+  if (dragCounter <= 0) {
     dropZone.classList.remove('active');
+  }
+});
 
-    const file = e.dataTransfer.files[0];
-    if (!file || !['text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
-      alert('Поддерживаются только .txt и .docx');
-      return;
-    }
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
 
-    if (!['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value)) {
-      serviceSelect.value = 'voice_text';
-      updateUI();
-    }
+window.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dragCounter = 0;
+  dropZone.classList.remove('active');
 
-    document.getElementById('fileInput').files = e.dataTransfer.files;
-    handleFile({ target: { files: e.dataTransfer.files } });
-  });
+  const file = e.dataTransfer.files[0];
+  if (!file || !['text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
+    alert('Поддерживаются только .txt и .docx');
+    return;
+  }
+
+  if (!['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value)) {
+    serviceSelect.value = 'voice_text';
+    updateUI();
+  }
+
+  document.getElementById('fileInput').files = e.dataTransfer.files;
+  handleFile({ target: { files: e.dataTransfer.files } });
+});
+
 
   // --- Смена темы ---
   function toggleTheme() {
@@ -165,64 +167,73 @@
     else next = "light";
     html.setAttribute("data-theme", next);
   }
-
+  
   // --- Обработка файла ---
   document.getElementById('fileInput').addEventListener('change', handleFile);
-
+  
   function handleFile(e) {
     urgent = false;
     basePrice = 0;
     urgentBtn.style.display = 'none';
     resultBlock.innerText = '';
-
+  
     const file = e.target.files[0];
     if (!file) return;
-
-  const wrapper = document.getElementById('fileWrapper');
-
-  const done = async (text) => {
-    try {
-      const count = await countBackend(text);
-      if (!isNaN(count) && count >= 1) {
-        manualInput.value = count;
-        calculate();
-      } else {
-        manualInput.value = 0;
-        alert("Файл не содержит слов!");
-      }
-    } catch (err) {
-      alert("Ошибка при подсчёте слов. Проверь файл.");
-    } finally {
-    }
-  };
-
-  const fail = (msg) => {
-    alert(msg);
-  };
-
-    if (file.name.endsWith('.txt')) {
-      const reader = new FileReader();
-
-      reader.onload = function (event) {
-        const text = event.target.result;
-        const looksBroken = text.includes(" ") || text.length < 100;
-
-        if (looksBroken) {
-          const fallbackReader = new FileReader();
-          fallbackReader.onload = function (e) {
-            const recoveredText = e.target.result;
-            setTimeout(() => done(recoveredText), 500 + Math.random() * 800);
-          };
-          fallbackReader.onerror = () => fail("Не удалось прочитать .txt файл (кодировка).");
-          fallbackReader.readAsText(file, 'windows-1251');
+  
+    const icon = document.querySelector('.file-icon .icon');
+    const loader = document.querySelector('.file-icon .loader');
+    icon.classList.add('hidden');
+    loader.classList.remove('hidden');
+  
+    const done = async (text) => {
+      try {
+        const count = await countBackend(text);
+        if (!isNaN(count) && count >= 1) {
+          manualInput.value = count;
+          calculate();  // ← автоматический запуск расчета
         } else {
-          setTimeout(() => done(text), 500 + Math.random() * 800);
+          manualInput.value = 0;
+          alert("Файл не содержит слов!");
         }
-      };
+      } catch (err) {
+        alert("Ошибка при подсчёте слов. Проверь файл.");
+      } finally {
+        icon.classList.remove('hidden');
+        loader.classList.add('hidden');
+      }
+    };
+  
+    const fail = (msg) => {
+      icon.classList.remove('hidden');
+      loader.classList.add('hidden');
+      alert(msg);
+    };
+  
+    if (file.name.endsWith('.txt')) {
+  const reader = new FileReader();
 
-      reader.onerror = () => fail("Не удалось прочитать .txt файл.");
-      reader.readAsText(file);
+  reader.onload = function (event) {
+    const text = event.target.result;
+    const looksBroken = text.includes(" ") || text.length < 100;
+
+    if (looksBroken) {
+      const fallbackReader = new FileReader();
+      fallbackReader.onload = function (e) {
+        const recoveredText = e.target.result;
+        setTimeout(() => done(recoveredText), 500 + Math.random() * 800);
+      };
+      fallbackReader.onerror = () => fail("Не удалось прочитать .txt файл (кодировка).");
+      fallbackReader.readAsText(file, 'windows-1251');
+    } else {
+      setTimeout(() => done(text), 500 + Math.random() * 800);
     }
+  };
+
+  reader.onerror = () => fail("Не удалось прочитать .txt файл.");
+  reader.readAsText(file);
+}
+
+
     else if (file.name.endsWith('.docx')) {
       const reader = new FileReader();
       reader.onload = function (event) {
@@ -241,218 +252,269 @@
       fail("Поддерживаются только файлы .txt и .docx");
     }
   }
-
+  
   async function countBackend(text) {
-    const service = serviceSelect.value;
-    const url = service === 'translate_text'
-      ? `${API_BASE}/count_chars`
-      : `${API_BASE}/count_words`;
+  const service = serviceSelect.value;
+  const url = service === 'translate_text'
+    ? "http://127.0.0.1:8000/count_chars"
+    : "http://127.0.0.1:8000/count_words";
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, service })
-    });
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, service })  // 👈 вот это важно!
+  });
 
-    if (!response.ok) throw new Error("Ошибка сервера");
+  if (!response.ok) throw new Error("Ошибка сервера");
 
-    const data = await response.json();
-    return service === 'translate_text' ? data.chars : data.words;
-  }
-
+  const data = await response.json();
+  return service === 'translate_text' ? data.chars : data.words;
+}
+  
   window.applyUrgent = function applyUrgent() {
     if (!basePrice) return;
     urgent = true;
     calculate();
   }
-
+  
   async function calculate() {
     const service = serviceSelect.value;
     let value = parseInt(manualInput.value) || 0;
-
+  
     if (!value || value <= 0) {
       resultBlock.innerText = "Введите корректное значение.";
       return;
     }
-
+  
     // Анимация расчёта
-    resultBlock.innerHTML = `
-      <div class="spinner"></div>
-      <div style="margin-top:12px;color:#888;">Считаем стоимость...</div>
-    `;
-
+    resultBlock.innerHTML = `<div class="spinner"></div>
+      <div style="margin-top:12px;color:#888;">Считаем стоимость...</div>`;
+  
     const payload = {
       service: service,
       text: value.toString(),
       is_urgent: urgent
     };
-
+  
     try {
-      const response = await fetch(`${API_BASE}/calculate`, {
+      const response = await fetch("http://127.0.0.1:8000/calculate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
       if (!response.ok) throw new Error("Ошибка сервера");
       const data = await response.json();
-
+  
       function secondsToTime(sec) {
         const m = Math.floor(sec / 60);
         const s = Math.round(sec % 60);
         return `${m}:${s < 10 ? '0' : ''}${s}`;
       }
-
-      const titles = {
+  
+      let serviceTitle = {
         'voice_text': "Озвучка текста",
         'voice_video': "Озвучка видео",
         'translate_text': "Перевод текста",
         'translate_voice': "Перевод + озвучка видео",
         'voice_camera': "Озвучка текста на камеру"
-      };
-      const serviceTitle = titles[service] || "";
+      }[service] || "";
+  
+      let resultText = `<div class="result-container" style="font-size:18px; line-height:1.6; max-width:400px; margin:0 auto;">`;
 
-      let resultText = `
-        <div class="result-container" style="font-size:18px; line-height:1.6; max-width:400px; margin:0 auto;">
-      `;
+// Услуга
+resultText += `
+  <div class="result-row">
+    <div class="icon">📦</div>
+    <div class="label">Услуга:</div>
+    <div class="value">${serviceTitle}${urgent ? " (СРОЧНО)" : ""}</div>
+  </div>
+`;
 
-      // Услуга
-      resultText += `
-        <div class="result-row">
-          <div class="icon">📦</div>
-          <div class="label">Услуга:</div>
-          <div class="value">${serviceTitle}${urgent ? " (СРОЧНО)" : ""}</div>
-        </div>
-      `;
+// Слова / минуты / оптимальный хронометраж
+if (service === 'voice_text' || service === 'voice_camera') {
+  const words = data.word_count;
+  const minutes = Math.ceil(words / 120);
+  const optimal_time = secondsToTime(Math.round(words * 60 / 133));
+  resultText += `
+    <div class="result-row">
+      <div class="icon">📄</div>
+      <div class="label">Слов:</div>
+      <div class="value">${words}</div>
+    </div>
+    <div class="result-row">
+      <div class="icon">🕒</div>
+      <div class="label">До:</div>
+      <div class="value">${minutes} минут</div>
+    </div>
+    <div class="result-row">
+      <div class="icon">🎯</div>
+      <div class="label">Оптимальный хронометраж:</div>
+      <div class="value">${optimal_time}</div>
+    </div>
+  `;
+}
 
-      // Слова / минуты / оптимальный хронометраж
-      if (service === 'voice_text' || service === 'voice_camera') {
-        const words = data.word_count;
-        const minutes = Math.ceil(words / 120);
-        const optimal_time = secondsToTime(Math.round(words * 60 / 133));
-        resultText += `
-          <div class="result-row">
-            <div class="icon">📄</div>
-            <div class="label">Слов:</div>
-            <div class="value">${words}</div>
-          </div>
-          <div class="result-row">
-            <div class="icon">🕒</div>
-            <div class="label">До:</div>
-            <div class="value">${minutes} минут</div>
-          </div>
-          <div class="result-row">
-            <div class="icon">🎯</div>
-            <div class="label">Оптимальный хронометраж:</div>
-            <div class="value">${optimal_time}</div>
-          </div>
-        `;
-      }
+// Видео или перевод + озвучка видео — минуты
+if (service === 'voice_video' || service === 'translate_voice') {
+  resultText += `
+    <div class="result-row">
+      <div class="icon">🕒</div>
+      <div class="label">До:</div>
+      <div class="value">${value} минут</div>
+    </div>
+  `;
+}
 
-      // Видео или перевод + озвучка видео — минуты
-      if (service === 'voice_video' || service === 'translate_voice') {
-        resultText += `
-          <div class="result-row">
-            <div class="icon">🕒</div>
-            <div class="label">До:</div>
-            <div class="value">${value} минут</div>
-          </div>
-        `;
-      }
+// Перевод текста — знаки
+if (service === 'translate_text') {
+  resultText += `
+    <div class="result-row">
+      <div class="icon">🔠</div>
+      <div class="label">Знаков без пробелов:</div>
+      <div class="value">${value}</div>
+    </div>
+  `;
+}
 
-      // Перевод текста — знаки
-      if (service === 'translate_text') {
-        resultText += `
-          <div class="result-row">
-            <div class="icon">🔠</div>
-            <div class="label">Знаков без пробелов:</div>
-            <div class="value">${value}</div>
-          </div>
-        `;
-      }
+// Срок выполнения
+const deadline = urgent ? data.deadline_urgent : data.deadline;
+const match = deadline.match(/^(.+?) \(до (.+?) включительно\)$/);
 
-      // Срок выполнения
-      const deadline = urgent ? data.deadline_urgent : data.deadline;
-      const match = deadline.match(/^(.+?) \(до (.+?) включительно\)$/);
-
-      let daysOnly = '';
-      if (match?.[1]) {
-        const num = parseInt(match[1]);
-        if (!isNaN(num)) {
-          daysOnly = num === 1 ? '1 день' : `до ${num} дней`;
-        } else {
-          daysOnly = `до ${match[1]}`;
-        }
-      }
-      const dateOnly = match?.[2] || "";
-
-      resultText += `
-        <div class="result-row">
-          <div class="icon">⏰</div>
-          <div class="label">Срок выполнения:</div>
-          <div class="value">${daysOnly}</div>
-        </div>
-        <div class="result-row">
-          <div class="icon">📅</div>
-          <div class="label">Дедлайн:</div>
-          <div class="value">${dateOnly}</div>
-        </div>
-      `;
-
-      // Стоимость
-      resultText += `
-        <div class="result-row">
-          <div class="icon">💰</div>
-          <div class="label">Стоимость:</div>
-          <div class="value">${
-            urgent
-              ? `${data.price_rub.toLocaleString('ru-RU')} ₽ ➡️ ${data.price_rub_urgent.toLocaleString('ru-RU')} ₽`
-              : `${data.price_rub.toLocaleString('ru-RU')} ₽`
-          }</div>
-        </div>
-      `;
-
-      // В USDT
-      resultText += `
-        <div class="result-row">
-          <div class="icon">💲</div>
-          <div class="label">В USDT:</div>
-          <div class="value">${
-            urgent
-              ? `${data.price_usdt} USDT ➡️ ${data.price_usdt_urgent} USDT`
-              : `${data.price_usdt} USDT`
-          }</div>
-        </div>
-      `;
-
-      resultText += `</div>`;
-
-      setTimeout(() => {
-        resultBlock.innerHTML = resultText;
-        requestAnimationFrame(() => {
-          const container = resultBlock.querySelector('.result-container');
-          if (container) container.classList.add('fade-slide-in');
-        });
-
-        if (!urgent) {
-          basePrice = data.price_rub;
-          urgentBtn.style.display = 'block';
-        } else {
-          urgentBtn.style.display = 'none';
-        }
-      }, 600 + Math.random() * 400);
-
-    } catch (error) {
-      resultBlock.innerText = "Ошибка: " + error.message;
-    }
+let daysOnly = '';
+if (match?.[1]) {
+  const num = parseInt(match[1]);
+  if (!isNaN(num)) {
+    daysOnly = num === 1 ? '1 день' : `до ${num} дней`;
+  } else {
+    daysOnly = `до ${match[1]}`;
   }
-  </script>
+}
+
+const dateOnly = match?.[2] || "";
+
+resultText += `
+  <div class="result-row">
+    <div class="icon">⏰</div>
+    <div class="label">Срок выполнения:</div>
+    <div class="value">${daysOnly}</div>
+  </div>
+  <div class="result-row">
+    <div class="icon">📅</div>
+    <div class="label">Дедлайн:</div>
+    <div class="value">${dateOnly}</div>
+  </div>
+`;
+
+// Стоимость
+resultText += `
+  <div class="result-row">
+    <div class="icon">💰</div>
+    <div class="label">Стоимость:</div>
+    <div class="value">${
+      urgent
+        ? `${data.price_rub.toLocaleString('ru-RU')} ₽ ➡️ ${data.price_rub_urgent.toLocaleString('ru-RU')} ₽`
+        : `${data.price_rub.toLocaleString('ru-RU')} ₽`
+    }</div>
+  </div>
+`;
+
+// В USDT
+resultText += `
+  <div class="result-row">
+    <div class="icon">💲</div>
+    <div class="label">В USDT:</div>
+    <div class="value">${
+      urgent
+        ? `${data.price_usdt} USDT ➡️ ${data.price_usdt_urgent} USDT`
+        : `${data.price_usdt} USDT`
+    }</div>
+  </div>
+`;
+
+resultText += `</div>`;
+
+setTimeout(() => {
+  resultBlock.innerHTML = resultText;
+  requestAnimationFrame(() => {
+  const container = resultBlock.querySelector('.result-container');
+  if (container) container.classList.add('fade-slide-in');
+  });
+
+  if (!urgent) {
+    basePrice = data.price_rub;
+    urgentBtn.style.display = 'block';
+  } else {
+    urgentBtn.style.display = 'none';
+  }
+}, 600 + Math.random() * 400);
+
+} catch (error) {
+  resultBlock.innerText = "Ошибка: " + error.message;
+}
+  }
+
+
+// Добавьте эту функцию в <script> section
+  function preprocessText(text) {
+    if (!text) return '';
+    
+    const symbolReplacements = {
+        '№': 'номер',
+        '$': 'доллар', 
+        '#': 'номер',
+        '@': 'собака',
+        '%': 'процент',
+        '€': 'евро',
+        '£': 'фунт',
+        '¥': 'иена',
+        '₽': 'рубль',
+        '°': 'градус',
+        '=': 'равно'
+    };
+
+    // Добавляем пробелы вокруг символов
+    const symbols = Object.keys(symbolReplacements).map(s => {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }).join('');
+    
+    const symbolsRegex = new RegExp(`([${symbols}])`, 'g');
+    let processed = text.replace(symbolsRegex, ' $1 ');
+    
+    // Схлопываем пробелы и заменяем символы
+    processed = processed.replace(/\s+/g, ' ').trim();
+    
+    Object.entries(symbolReplacements).forEach(([symbol, word]) => {
+        const escapedSymbol = symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(` ${escapedSymbol} `, 'g');
+        processed = processed.replace(regex, ` ${word} `);
+    });
+    
+    return processed;
+}
+
+async function countBackend(text) {
+    const service = serviceSelect.value;
+    const processedText = preprocessText(text);
+    
+    const url = service === 'translate_text'
+        ? "https://telegram-voicebot.onrender.com/count_chars"
+        : "https://telegram-voicebot.onrender.com/count_words";
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: processedText, service: service })
+    });
+
+    if (!response.ok) throw new Error("Ошибка сервера");
+    const data = await response.json();
+    return service === 'translate_text' ? data.chars : data.words;
+}
+
+</script>
 
   <footer style="margin-top: 50px; font-size: 14px; color: var(--text-color); opacity: 0.5;">
     © Антон Малютин (tonynof8), 2025<br>
   </footer>
 </body>
 </html>
-
-
-
-
