@@ -68,7 +68,14 @@
   const urgentBtn = document.getElementById('urgentBtn');
   const resultBlock = document.getElementById('result');
   const serviceTip = document.getElementById('serviceTip');
-  
+
+  manualInput.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      calculate();
+    }
+  });
+    
   const serviceTips = {
     "voice_text": "⚡ Загрузите txt или docx, или укажите точное количество слов для озвучки. Все числа, сокращения и единицы должны быть записаны полностью — так, как вы хотите, чтобы их произнесли. Например: 32 м - тридцать два метра",
     "voice_video": "⏱️ Длительность видео небходимо вводить с округлением в большую степень. 6 минут 3 секунды => 7 минут",
@@ -447,3 +454,4 @@ setTimeout(() => {
 </body>
 
 </html>
+
