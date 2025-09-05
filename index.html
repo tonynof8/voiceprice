@@ -242,8 +242,8 @@ window.addEventListener('drop', async (e) => {
   async function countBackend(text) {
   const service = serviceSelect.value;
   const url = service === 'translate_text'
-    ? "http://127.0.0.1:8000/count_chars"
-    : "http://127.0.0.1:8000/count_words";
+    ? "https://telegram-voicebot.onrender.com/count_chars"
+    : "https://telegram-voicebot.onrender.com/count_words";
 
   const response = await fetch(url, {
     method: "POST",
@@ -283,7 +283,7 @@ window.addEventListener('drop', async (e) => {
     };
   
     try {
-      const response = await fetch("http://127.0.0.1:8000/calculate", {
+      const response = await fetch("https://telegram-voicebot.onrender.com/calculate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -445,4 +445,5 @@ setTimeout(() => {
     © Антон Малютин (tonynof8), 2025<br>
   </footer>
 </body>
+
 </html>
