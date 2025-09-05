@@ -454,9 +454,10 @@ setTimeout(() => {
   }
 
 
-// Добавьте эту функцию в <script> section
   function preprocessText(text) {
-    if (!text) return '';
+    if (!text || typeof text !== 'string') return '';
+    
+    console.log("🔧 Исходный текст:", text);
     
     const symbolReplacements = {
         '№': 'номер',
@@ -469,26 +470,35 @@ setTimeout(() => {
         '¥': 'иена',
         '₽': 'рубль',
         '°': 'градус',
-        '=': 'равно'
+        '=': 'равно',
+        '&': 'и'
     };
 
-    // Добавляем пробелы вокруг символов
-    const symbols = Object.keys(symbolReplacements).map(s => {
-        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }).join('');
+    // Сначала заменяем символы, которые могут быть рядом с числами
+    let processed = text;
     
-    const symbolsRegex = new RegExp(`([${symbols}])`, 'g');
-    let processed = text.replace(symbolsRegex, ' $1 ');
-    
-    // Схлопываем пробелы и заменяем символы
+    // Обрабатываем символы перед числами (№522, $100, 100%)
+    Object.entries(symbolReplacements).forEach(([symbol, word]) => {
+        const regex = new RegExp(`(${symbol}\\s*)(\\d+)`, 'gi');
+        processed = processed.replace(regex, ` ${word} $2 `);
+    });
+
+    // Обрабатываем символы после чисел (100%, 50°)
+    Object.entries(symbolReplacements).forEach(([symbol, word]) => {
+        const regex = new RegExp(`(\\d+)(\\s*${symbol})`, 'gi');
+        processed = processed.replace(regex, ` $1 ${word} `);
+    });
+
+    // Обрабатываем изолированные символы
+    Object.entries(symbolReplacements).forEach(([symbol, word]) => {
+        const regex = new RegExp(`(^|\\s)${symbol}($|\\s)`, 'gi');
+        processed = processed.replace(regex, ` $1${word}$2 `);
+    });
+
+    // Схлопываем множественные пробелы
     processed = processed.replace(/\s+/g, ' ').trim();
     
-    Object.entries(symbolReplacements).forEach(([symbol, word]) => {
-        const escapedSymbol = symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(` ${escapedSymbol} `, 'g');
-        processed = processed.replace(regex, ` ${word} `);
-    });
-    
+    console.log("🔧 Обработанный текст:", processed);
     return processed;
 }
 
@@ -496,20 +506,72 @@ async function countBackend(text) {
     const service = serviceSelect.value;
     const processedText = preprocessText(text);
     
+    console.log("📤 Отправка на сервер:", processedText);
+    
     const url = service === 'translate_text'
         ? "https://telegram-voicebot.onrender.com/count_chars"
         : "https://telegram-voicebot.onrender.com/count_words";
 
-    const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: processedText, service: service })
-    });
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ text: processedText, service: service }),
+            mode: "cors" // явно указываем CORS mode
+        });
 
-    if (!response.ok) throw new Error("Ошибка сервера");
-    const data = await response.json();
-    return service === 'translate_text' ? data.chars : data.words;
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("📥 Ответ от сервера:", data);
+        return service === 'translate_text' ? data.chars : data.words;
+        
+    } catch (error) {
+        console.error("❌ Ошибка fetch:", error);
+        // Fallback: считаем слова на клиенте если сервер недоступен
+        return countWordsClient(processedText, service);
+    }
 }
+
+// Фолбэк функция для подсчета на клиенте
+function countWordsClient(text, service) {
+    if (service === 'translate_text') {
+        // Подсчет символов без пробелов
+        return text.replace(/\s+/g, '').length;
+    } else {
+        // Подсчет слов
+        return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    }
+}
+
+// Добавьте эту функцию для тестирования
+function testPreprocessing() {
+    const testCases = [
+        "522%",
+        "№522", 
+        "$100",
+        "100€",
+        "50°C",
+        "test@example.com",
+        "100 & 200"
+    ];
+    
+    testCases.forEach(test => {
+        const result = preprocessText(test);
+        const wordCount = countWordsClient(result, 'voice_text');
+        console.log(`TEST: "${test}" -> "${result}" (${wordCount} слов)`);
+    });
+}
+
+// Вызовите при загрузке для тестирования
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(testPreprocessing, 1000);
+});
 
 </script>
 
