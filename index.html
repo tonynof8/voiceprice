@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="auto">
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <title>Voiceprice | Быстрый расчет стоимости озвучки и перевода</title>
@@ -8,8 +8,7 @@
 </head>
 <body>
 
-  <div class="theme-toggle" onclick="toggleTheme()">🌓 Тема</div>
-
+  </div>
   <div id="dropZone" class="drop-zone">
     <div class="drop-inner">
       <div class="drop-icon">📁</div>
@@ -17,10 +16,9 @@
     </div>
   </div>
 
+  </div>
   <div class="page-header">
-    <span class="emoji">🎙️</span>
-    <span class="title">Voiceprice</span>
-    <span class="divider">|</span>
+    <span class="title">🎙️Voiceprice</span>
     <span class="subtitle">Быстрый расчет стоимости озвучки и перевода</span>
   </div>
 
@@ -52,7 +50,7 @@
   
     <input type="file" id="fileInput" accept=".txt,.docx" />
   </div>
-  
+
 
   <button onclick="calculate()">Рассчитать</button>
   <button id="urgentBtn" class="urgent" onclick="applyUrgent()" style="display: none;">Срочно</button>
@@ -156,18 +154,6 @@ window.addEventListener('drop', async (e) => {
   handleFile({ target: { files: e.dataTransfer.files } });
 });
 
-
-  // --- Смена темы ---
-  function toggleTheme() {
-    const html = document.documentElement;
-    const current = html.getAttribute("data-theme");
-    let next;
-    if (current === "light") next = "dark";
-    else if (current === "dark") next = "auto";
-    else next = "light";
-    html.setAttribute("data-theme", next);
-  }
-  
   // --- Обработка файла ---
   document.getElementById('fileInput').addEventListener('change', handleFile);
   
@@ -180,8 +166,8 @@ window.addEventListener('drop', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
   
-    const icon = document.querySelector('.file-icon .icon');
-    const loader = document.querySelector('.file-icon .loader');
+    const icon = fileLabel.querySelector('.icon');
+    const loader = fileLabel.querySelector('.loader');
     icon.classList.add('hidden');
     loader.classList.remove('hidden');
   
@@ -452,126 +438,6 @@ setTimeout(() => {
   resultBlock.innerText = "Ошибка: " + error.message;
 }
   }
-
-
-  function preprocessText(text) {
-    if (!text || typeof text !== 'string') return '';
-    
-    console.log("🔧 Исходный текст:", text);
-    
-    const symbolReplacements = {
-        '№': 'номер',
-        '$': 'доллар', 
-        '#': 'номер',
-        '@': 'собака',
-        '%': 'процент',
-        '€': 'евро',
-        '£': 'фунт',
-        '¥': 'иена',
-        '₽': 'рубль',
-        '°': 'градус',
-        '=': 'равно',
-        '&': 'и'
-    };
-
-    // Сначала заменяем символы, которые могут быть рядом с числами
-    let processed = text;
-    
-    // Обрабатываем символы перед числами (№522, $100, 100%)
-    Object.entries(symbolReplacements).forEach(([symbol, word]) => {
-        const regex = new RegExp(`(${symbol}\\s*)(\\d+)`, 'gi');
-        processed = processed.replace(regex, ` ${word} $2 `);
-    });
-
-    // Обрабатываем символы после чисел (100%, 50°)
-    Object.entries(symbolReplacements).forEach(([symbol, word]) => {
-        const regex = new RegExp(`(\\d+)(\\s*${symbol})`, 'gi');
-        processed = processed.replace(regex, ` $1 ${word} `);
-    });
-
-    // Обрабатываем изолированные символы
-    Object.entries(symbolReplacements).forEach(([symbol, word]) => {
-        const regex = new RegExp(`(^|\\s)${symbol}($|\\s)`, 'gi');
-        processed = processed.replace(regex, ` $1${word}$2 `);
-    });
-
-    // Схлопываем множественные пробелы
-    processed = processed.replace(/\s+/g, ' ').trim();
-    
-    console.log("🔧 Обработанный текст:", processed);
-    return processed;
-}
-
-async function countBackend(text) {
-    const service = serviceSelect.value;
-    const processedText = preprocessText(text);
-    
-    console.log("📤 Отправка на сервер:", processedText);
-    
-    const url = service === 'translate_text'
-        ? "https://telegram-voicebot.onrender.com/count_chars"
-        : "https://telegram-voicebot.onrender.com/count_words";
-
-    try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify({ text: processedText, service: service }),
-            mode: "cors" // явно указываем CORS mode
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("📥 Ответ от сервера:", data);
-        return service === 'translate_text' ? data.chars : data.words;
-        
-    } catch (error) {
-        console.error("❌ Ошибка fetch:", error);
-        // Fallback: считаем слова на клиенте если сервер недоступен
-        return countWordsClient(processedText, service);
-    }
-}
-
-// Фолбэк функция для подсчета на клиенте
-function countWordsClient(text, service) {
-    if (service === 'translate_text') {
-        // Подсчет символов без пробелов
-        return text.replace(/\s+/g, '').length;
-    } else {
-        // Подсчет слов
-        return text.trim().split(/\s+/).filter(word => word.length > 0).length;
-    }
-}
-
-// Добавьте эту функцию для тестирования
-function testPreprocessing() {
-    const testCases = [
-        "522%",
-        "№522", 
-        "$100",
-        "100€",
-        "50°C",
-        "test@example.com",
-        "100 & 200"
-    ];
-    
-    testCases.forEach(test => {
-        const result = preprocessText(test);
-        const wordCount = countWordsClient(result, 'voice_text');
-        console.log(`TEST: "${test}" -> "${result}" (${wordCount} слов)`);
-    });
-}
-
-// Вызовите при загрузке для тестирования
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(testPreprocessing, 1000);
-});
 
 </script>
 
