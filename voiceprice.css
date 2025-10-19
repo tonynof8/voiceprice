@@ -395,7 +395,7 @@ button:not(.urgent-toggle):active {
   border: 1px solid rgba(139, 92, 246, 0.3);
   border-radius: var(--radius);
   padding: 20px;
-  min-height: 350px;
+  min-height: 320px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
