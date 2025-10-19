@@ -343,7 +343,7 @@ async function calculate() {
       </div>
     `;
 
-    resultText += `
+/*    resultText += `
       <div class="result-row">
         <div class="icon">💲</div>
         <div class="label">В USDT:</div>
@@ -353,7 +353,7 @@ async function calculate() {
             : `${data.price_usdt} USDT`
         }</div>
       </div>
-    `;
+    `;*/
 
     setTimeout(() => {
       const resultContent = resultBlock.querySelector('.result-content');
