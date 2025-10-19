@@ -27,51 +27,6 @@ html, body {
   position: relative;
 }
 
-html::before,
-html::after,
-body::before,
-body::after {
-  content: '';
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.15;
-  z-index: 0;
-  pointer-events: none;
-}
-
-html::before {
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, #667eea 0%, transparent 70%);
-  top: -300px;
-  right: -200px;
-}
-
-html::after {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, #ec4899 0%, transparent 70%);
-  bottom: -150px;
-  left: -100px;
-}
-
-body::before {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
-  top: 40%;
-  left: -150px;
-}
-
-body::after {
-  width: 450px;
-  height: 450px;
-  background: radial-gradient(circle, #764ba2 0%, transparent 70%);
-  bottom: 20%;
-  right: -100px;
-}
-
 .container {
   min-height: 100vh;
   display: flex;
