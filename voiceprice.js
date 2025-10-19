@@ -33,12 +33,8 @@ const serviceTips = {
 
 function updateUI() {
   const allowFile = ['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value);
-  const fileLabel = document.getElementById("fileLabel");
-  if (allowFile) {
-    fileLabel.classList.remove('hidden');
-  } else {
-    fileLabel.classList.add('hidden');
-  }
+  const fileWrapper = document.getElementById("fileWrapper");
+  fileWrapper.classList.toggle('hidden', !allowFile);
 
   const ph = {
     'voice_text': 'Введите количество слов',
