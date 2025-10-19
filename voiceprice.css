@@ -7,7 +7,7 @@
   --accent-light: #a78bfa;
   --radius: 12px;
   --radius-lg: 20px;
-  --card-bg: rgba(44, 44, 46, 0.4);
+  --card-bg: rgba(44, 44, 46, 0.35);
   --card-border: rgba(255, 255, 255, 0.12);
   --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
@@ -21,9 +21,10 @@
 html, body {
   height: 100%;
   font-family: 'Montserrat', sans-serif;
-  background: var(--bg-color);
+  background: #1c1c1e;
   color: var(--text-color);
   overflow-x: hidden;
+  position: relative;
 }
 
 .container {
@@ -42,6 +43,7 @@ html, body {
   padding: 12px 20px;
   background: var(--card-bg);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
   color: var(--text-color);
@@ -57,41 +59,12 @@ html, body {
   transform: translateX(-3px);
 }
 
-.animated-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-.wave {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-}
-
-.wave path {
-  stroke: #667eea;
-  stroke-width: 1;
-  fill: none;
-  filter: drop-shadow(0 0 6px #764ba2);
-  animation: waveGlow 3s ease-in-out infinite alternate;
-}
-
-@keyframes waveGlow {
-  0% { stroke-opacity: 0.3; }
-  100% { stroke-opacity: 1; }
-}
-
 .calculator-wrapper {
   max-width: 600px;
   width: 100%;
   background: var(--card-bg);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--card-shadow);
@@ -151,6 +124,7 @@ html, body {
   bottom: 0;
   background: rgba(139, 92, 246, 0.95);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
@@ -261,6 +235,7 @@ input[type="number"] {
   padding: 12px 16px;
   background: var(--card-bg);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
   cursor: pointer;
@@ -334,7 +309,7 @@ input[type="number"] {
   gap: 8px;
   font-size: 0.9rem;
   font-weight: 700;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   flex-shrink: 0;
   border-radius: var(--radius);
   cursor: pointer;
@@ -344,8 +319,7 @@ input[type="number"] {
 .urgent-toggle:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(0) scale(1);
-  box-shadow: none;
+  color: #fff;
 }
 
 .urgent-toggle.active {
@@ -371,10 +345,10 @@ input[type="number"] {
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.2); }
+  50% { transform: scale(1.5); }
 }
 
-button {
+button:not(.urgent-toggle) {
   width: 100%;
   padding: 14px 24px;
   font-family: 'Montserrat', sans-serif;
@@ -390,7 +364,7 @@ button {
   overflow: hidden;
 }
 
-button::before {
+button:not(.urgent-toggle)::before {
   content: '';
   position: absolute;
   top: 0;
@@ -401,17 +375,17 @@ button::before {
   transition: left 0.6s ease;
 }
 
-button:hover::before {
+button:not(.urgent-toggle):hover::before {
   left: 100%;
 }
 
-button:hover {
+button:not(.urgent-toggle):hover {
   filter: brightness(1.1);
   transform: translateY(-2px) scale(1.01);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
-button:active {
+button:not(.urgent-toggle):active {
   transform: scale(0.99);
 }
 
