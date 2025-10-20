@@ -572,7 +572,6 @@ footer {
   }
 
   select, input[type="number"] {
-    height: 48px;
     font-size: 0.95rem;
   }
 
