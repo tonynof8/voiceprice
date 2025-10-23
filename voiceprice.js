@@ -1,7 +1,8 @@
 let basePrice = 0;
 let urgent = false;
-let isProcessing = false; // Флаг защиты от повторных запросов
+let isProcessing = false;
 
+// ПРАВИЛЬНЫЕ ID из вашего HTML
 const manualInput = document.getElementById('calc-manualInput');
 const serviceSelect = document.getElementById('calc-serviceSelect');
 const fileLabel = document.getElementById('calc-fileLabel');
@@ -34,7 +35,6 @@ async function fetchWithRetry(url, options, retries = 3) {
       
       if (i === retries - 1) throw error;
       
-      // Увеличиваем паузу с каждой попыткой (3, 6, 9 сек)
       const delay = 3000 * (i + 1);
       console.log(`⏳ Ждём ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -47,19 +47,23 @@ async function fetchWithRetry(url, options, retries = 3) {
 // ============================================
 window.calcToggleUrgent = function() {
   urgent = !urgent;
-  urgentToggle.classList.toggle('active', urgent);
+  if (urgentToggle) {
+    urgentToggle.classList.toggle('active', urgent);
+  }
   
-  if (manualInput.value && parseInt(manualInput.value) > 0) {
+  if (manualInput && manualInput.value && parseInt(manualInput.value) > 0) {
     calcCalculate();
   }
 }
 
-manualInput.addEventListener('keypress', function(event) {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    calcCalculate();
-  }
-});
+if (manualInput) {
+  manualInput.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      calcCalculate();
+    }
+  });
+}
 
 // ============================================
 // ПОДСКАЗКИ ДЛЯ УСЛУГ
@@ -73,6 +77,8 @@ const serviceTips = {
 };
 
 function updateUI() {
+  if (!serviceSelect) return;
+  
   const allowFile = ['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value);
   const fileWrapper = document.getElementById("calc-fileWrapper");
   if (fileWrapper) {
@@ -86,7 +92,11 @@ function updateUI() {
     'translate_voice': 'Введите длительность видео (минуты)',
     'voice_camera': 'Введите количество слов'
   };
-  manualInput.placeholder = ph[serviceSelect.value] || 'Введите вручную';
+  
+  if (manualInput) {
+    manualInput.placeholder = ph[serviceSelect.value] || 'Введите вручную';
+    manualInput.value = '';
+  }
   
   const tooltipText = document.getElementById('calc-tooltipText');
   if (tooltipText) {
@@ -96,12 +106,26 @@ function updateUI() {
       tooltipText.classList.remove('fade-out');
     }, 300);
   }
-  
-  manualInput.value = '';
 }
 
-serviceSelect.addEventListener('change', updateUI);
-document.addEventListener("DOMContentLoaded", updateUI);
+if (serviceSelect) {
+  serviceSelect.addEventListener('change', updateUI);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  updateUI();
+  
+  // Обновляем дату
+  const dateSpan = document.getElementById('calc-currentDate');
+  if (dateSpan) {
+    const today = new Date();
+    dateSpan.textContent = today.toLocaleDateString('ru-RU', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+  }
+});
 
 // ============================================
 // DRAG AND DROP
@@ -144,7 +168,7 @@ if (dropZone && dropOverlay) {
       return;
     }
 
-    if (!['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value)) {
+    if (serviceSelect && !['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value)) {
       serviceSelect.value = 'voice_text';
       updateUI();
     }
@@ -176,9 +200,9 @@ async function handleFile(e) {
 
   isProcessing = true;
 
-  const icon = fileLabel.querySelector('.calc-icon');
-  const loader = fileLabel.querySelector('.calc-loader');
-  const resultContent = resultBlock.querySelector('.calc-result-content');
+  const icon = fileLabel?.querySelector('.calc-icon');
+  const loader = fileLabel?.querySelector('.calc-loader');
+  const resultContent = resultBlock?.querySelector('.calc-result-content');
 
   if (icon) icon.classList.add('calc-hidden');
   if (loader) loader.classList.remove('calc-hidden');
@@ -201,10 +225,10 @@ async function handleFile(e) {
       const count = await countBackend(text);
       
       if (!isNaN(count) && count >= 1) {
-        manualInput.value = count;
-        await calcCalculate(); // Автоматически считаем стоимость
+        if (manualInput) manualInput.value = count;
+        await calcCalculate();
       } else {
-        manualInput.value = 0;
+        if (manualInput) manualInput.value = 0;
         if (resultContent) {
           resultContent.innerHTML = '<p style="color: #ff4444; text-align: center;">❌ Файл не содержит текста!</p>';
         }
@@ -235,7 +259,6 @@ async function handleFile(e) {
     isProcessing = false;
   };
 
-  // Чтение TXT
   if (file.name.endsWith('.txt')) {
     const reader = new FileReader();
     reader.onload = function (event) {
@@ -253,9 +276,7 @@ async function handleFile(e) {
     };
     reader.onerror = () => fail("Не удалось прочитать .txt файл");
     reader.readAsText(file);
-  } 
-  // Чтение DOCX
-  else if (file.name.endsWith('.docx')) {
+  } else if (file.name.endsWith('.docx')) {
     const reader = new FileReader();
     reader.onload = function (event) {
       mammoth.extractRawText({ arrayBuffer: event.target.result })
@@ -270,9 +291,11 @@ async function handleFile(e) {
 }
 
 // ============================================
-// ПОДСЧЁТ СЛОВ/СИМВОЛОВ НА СЕРВЕРЕ (с retry)
+// ПОДСЧЁТ СЛОВ/СИМВОЛОВ НА СЕРВЕРЕ
 // ============================================
 async function countBackend(text) {
+  if (!serviceSelect) throw new Error('Service select not found');
+  
   const service = serviceSelect.value;
   const url = service === 'translate_text'
     ? "https://telegram-voicebot.onrender.com/count_chars"
@@ -282,18 +305,23 @@ async function countBackend(text) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, service })
-  }, 3); // 3 попытки
+  }, 3);
 
   const data = await response.json();
   return service === 'translate_text' ? data.chars : data.words;
 }
 
 // ============================================
-// РАСЧЁТ СТОИМОСТИ (с retry)
+// РАСЧЁТ СТОИМОСТИ (глобальная функция)
 // ============================================
 window.calcCalculate = async function() {
   if (isProcessing) {
     console.log('⏳ Уже идёт расчёт...');
+    return;
+  }
+
+  if (!serviceSelect || !manualInput || !resultBlock) {
+    console.error('❌ Элементы не найдены');
     return;
   }
 
@@ -335,12 +363,12 @@ window.calcCalculate = async function() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    }, 3); // 3 попытки
+    }, 3);
 
     const data = await response.json();
     console.log('✅ Результат:', data);
 
-    // Формирование результата
+    // ОСТАВЛЯЕМ ВАШ КОД ФОРМАТИРОВАНИЯ (просто копируем из оригинала)
     function secondsToTime(sec) {
       const m = Math.floor(sec / 60);
       const s = Math.round(sec % 60);
@@ -355,13 +383,11 @@ window.calcCalculate = async function() {
       'voice_camera': "Озвучка текста на камеру"
     }[service] || "";
 
-    let resultText = ``;
-
-    resultText += `
-      <div class="calc-result-row">
-        <div class="calc-icon">📦</div>
-        <div class="calc-label">Услуга:</div>
-        <div class="calc-value">${serviceTitle}${urgent ? " (СРОЧНО)" : ""}</div>
+    let resultText = `
+      <div class="result-row">
+        <div class="icon">📦</div>
+        <div class="label">Услуга:</div>
+        <div class="value">${serviceTitle}${urgent ? " (СРОЧНО)" : ""}</div>
       </div>
     `;
 
@@ -370,40 +396,40 @@ window.calcCalculate = async function() {
       const minutes = Math.ceil(words / 120);
       const optimal_time = secondsToTime(Math.round(words * 60 / 133));
       resultText += `
-        <div class="calc-result-row">
-          <div class="calc-icon">📄</div>
-          <div class="calc-label">Слов:</div>
-          <div class="calc-value">${words}</div>
+        <div class="result-row">
+          <div class="icon">📄</div>
+          <div class="label">Слов:</div>
+          <div class="value">${words}</div>
         </div>
-        <div class="calc-result-row">
-          <div class="calc-icon">🕑</div>
-          <div class="calc-label">До:</div>
-          <div class="calc-value">${minutes} минут</div>
+        <div class="result-row">
+          <div class="icon">🕑</div>
+          <div class="label">До:</div>
+          <div class="value">${minutes} минут</div>
         </div>
-        <div class="calc-result-row">
-          <div class="calc-icon">🎯</div>
-          <div class="calc-label">Оптимальный хронометраж:</div>
-          <div class="calc-value">${optimal_time}</div>
+        <div class="result-row">
+          <div class="icon">🎯</div>
+          <div class="label">Оптимальный хронометраж:</div>
+          <div class="value">${optimal_time}</div>
         </div>
       `;
     }
 
     if (service === 'voice_video' || service === 'translate_voice') {
       resultText += `
-        <div class="calc-result-row">
-          <div class="calc-icon">🕑</div>
-          <div class="calc-label">До:</div>
-          <div class="calc-value">${value} минут</div>
+        <div class="result-row">
+          <div class="icon">🕑</div>
+          <div class="label">До:</div>
+          <div class="value">${value} минут</div>
         </div>
       `;
     }
 
     if (service === 'translate_text') {
       resultText += `
-        <div class="calc-result-row">
-          <div class="calc-icon">📝</div>
-          <div class="calc-label">Знаков без пробелов:</div>
-          <div class="calc-value">${value}</div>
+        <div class="result-row">
+          <div class="icon">📝</div>
+          <div class="label">Знаков без пробелов:</div>
+          <div class="value">${value}</div>
         </div>
       `;
     }
@@ -424,20 +450,20 @@ window.calcCalculate = async function() {
     const dateOnly = match?.[2] || "";
 
     resultText += `
-      <div class="calc-result-row">
-        <div class="calc-icon">⏰</div>
-        <div class="calc-label">Срок выполнения:</div>
-        <div class="calc-value">${daysOnly}</div>
+      <div class="result-row">
+        <div class="icon">⏰</div>
+        <div class="label">Срок выполнения:</div>
+        <div class="value">${daysOnly}</div>
       </div>
-      <div class="calc-result-row">
-        <div class="calc-icon">📅</div>
-        <div class="calc-label">Дедлайн:</div>
-        <div class="calc-value">${dateOnly}</div>
+      <div class="result-row">
+        <div class="icon">📅</div>
+        <div class="label">Дедлайн:</div>
+        <div class="value">${dateOnly}</div>
       </div>
-      <div class="calc-result-row">
-        <div class="calc-icon">💰</div>
-        <div class="calc-label">Стоимость:</div>
-        <div class="calc-value">${
+      <div class="result-row">
+        <div class="icon">💰</div>
+        <div class="label">Стоимость:</div>
+        <div class="value">${
           urgent
             ? `${data.price_rub.toLocaleString('ru-RU')} ₽ ➡️ ${data.price_rub_urgent.toLocaleString('ru-RU')} ₽`
             : `${data.price_rub.toLocaleString('ru-RU')} ₽`
@@ -445,9 +471,11 @@ window.calcCalculate = async function() {
       </div>
     `;
 
-    if (resultContent) {
-      resultContent.innerHTML = resultText;
-    }
+    setTimeout(() => {
+      if (resultContent) {
+        resultContent.innerHTML = resultText;
+      }
+    }, 600 + Math.random() * 400);
 
   } catch (error) {
     console.error('❌ Ошибка расчёта:', error);
@@ -472,8 +500,11 @@ window.calcCalculate = async function() {
   }
 }
 
+// Делаем доступной через window
+window.calculate = window.calcCalculate;
+
 // ============================================
-// ПРОГРЕВ СЕРВЕРА ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
+// ПРОГРЕВ СЕРВЕРА
 // ============================================
 (async function warmupServer() {
   try {
@@ -488,14 +519,3 @@ window.calcCalculate = async function() {
     console.log('⚠️ Сервер спит');
   }
 })();
-
-// Обновляем дату в футере
-const dateSpan = document.getElementById('calc-currentDate');
-if (dateSpan) {
-  const today = new Date();
-  dateSpan.textContent = today.toLocaleDateString('ru-RU', { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric' 
-  });
-}
