@@ -9,7 +9,7 @@ async function fetchWithRetry(url, options, retries = 3) {
       console.log(`🔄 Попытка ${i + 1}/${retries}`);
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       
       const response = await fetch(url, {
         ...options,
