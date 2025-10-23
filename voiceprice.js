@@ -1,6 +1,37 @@
 let basePrice = 0;
 let urgent = false;
 
+let isProcessing = false;
+
+async function fetchWithRetry(url, options, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`🔄 Попытка ${i + 1}/${retries}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response;
+      
+    } catch (error) {
+      console.warn(`⚠️ Попытка ${i + 1} провалилась:`, error.message);
+      
+      if (i === retries - 1) throw error;
+      
+      const delay = 3000 * (i + 1);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 const manualInput = document.getElementById('manualInput');
 const serviceSelect = document.getElementById('serviceSelect');
 const fileLabel = document.getElementById('fileLabel');
@@ -122,6 +153,8 @@ function handleFile(e) {
   loader.classList.remove('hidden');
 
   const done = async (text) => {
+    if (isProcessing) return;
+    isProcessing = true;
     try {
       const count = await countBackend(text);
       if (!isNaN(count) && count >= 1) {
@@ -136,6 +169,7 @@ function handleFile(e) {
     } finally {
       icon.classList.remove('hidden');
       loader.classList.add('hidden');
+      isProcessing = false;
     }
   };
 
@@ -190,7 +224,7 @@ async function countBackend(text) {
     ? "https://telegram-voicebot.onrender.com/count_chars"
     : "https://telegram-voicebot.onrender.com/count_words";
 
-  const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, service })
@@ -202,6 +236,12 @@ async function countBackend(text) {
 }
 
 async function calculate() {
+  if (isProcessing) {
+    console.log('⏳ Уже идёт расчёт...');
+    return;
+  }
+  isProcessing = true;
+  
   const service = serviceSelect.value;
   let value = parseInt(manualInput.value) || 0;
 
@@ -228,7 +268,7 @@ async function calculate() {
   };
 
   try {
-    const response = await fetch("https://telegram-voicebot.onrender.com/calculate", {
+    const response = await fetchWithRetry("https://telegram-voicebot.onrender.com/calculate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -367,5 +407,7 @@ async function calculate() {
     if (resultContent) {
       resultContent.innerHTML = '<p style="color: #ff4444; text-align: center; margin: 0;">Ошибка: ' + error.message + '</p>';
     }
+  } finally {
+    isProcessing = false; // ← ДОБАВИТЬ ЭТОТ БЛОК
   }
 }
