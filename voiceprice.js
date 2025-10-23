@@ -144,8 +144,15 @@ dropZone.addEventListener('drop', async (e) => {
 document.getElementById('fileInput').addEventListener('change', handleFile);
 
 function handleFile(e) {
+  if (isProcessing) {
+    console.log('⏳ Уже обрабатывается файл...');
+    return;
+  }
+  
   const file = e.target.files[0];
   if (!file) return;
+  
+  isProcessing = true;
 
   const icon = fileLabel.querySelector('.icon');
   const loader = fileLabel.querySelector('.loader');
@@ -153,9 +160,8 @@ function handleFile(e) {
   loader.classList.remove('hidden');
 
   const done = async (text) => {
-    if (isProcessing) return;
-    isProcessing = true;
     try {
+      console.log('📄 Подсчитываем слова/символы...');
       const count = await countBackend(text);
       if (!isNaN(count) && count >= 1) {
         manualInput.value = count;
@@ -169,7 +175,6 @@ function handleFile(e) {
     } finally {
       icon.classList.remove('hidden');
       loader.classList.add('hidden');
-      isProcessing = false;
     }
   };
 
@@ -177,6 +182,7 @@ function handleFile(e) {
     icon.classList.remove('hidden');
     loader.classList.add('hidden');
     alert(msg);
+    isProcessing = false;
   };
 
   if (file.name.endsWith('.txt')) {
@@ -189,12 +195,18 @@ function handleFile(e) {
         const fallbackReader = new FileReader();
         fallbackReader.onload = function (e) {
           const recoveredText = e.target.result;
-          setTimeout(() => done(recoveredText), 500 + Math.random() * 800);
+          setTimeout(() => {
+            done(recoveredText);
+            isProcessing = false;
+          }, 500 + Math.random() * 800);
         };
         fallbackReader.onerror = () => fail("Не удалось прочитать .txt файл (кодировка).");
         fallbackReader.readAsText(file, 'windows-1251');
       } else {
-        setTimeout(() => done(text), 500 + Math.random() * 800);
+        setTimeout(() => {
+          done(text);
+          isProcessing = false; // ← ДОБАВИТЬ
+        }, 500 + Math.random() * 800);
       }
     };
     reader.onerror = () => fail("Не удалось прочитать .txt файл.");
@@ -205,7 +217,10 @@ function handleFile(e) {
       mammoth.extractRawText({ arrayBuffer: event.target.result })
         .then(result => {
           const text = result.value || '';
-          setTimeout(() => done(text), 500 + Math.random() * 800);
+          setTimeout(() => {
+            done(text);
+            isProcessing = false; // ← ДОБАВИТЬ
+          }, 500 + Math.random() * 800);
         })
         .catch(err => {
           fail("Не удалось извлечь текст из .docx файла.");
