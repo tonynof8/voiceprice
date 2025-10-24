@@ -36,15 +36,22 @@ async function fetchWithRetry(url, options, retries = 3) {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
       
+      // ЧИТАЕМ ОДИН РАЗ И ВОЗВРАЩАЕМ ДАННЫЕ
       const data = await response.json();
       console.log(`✅ [${requestId}] Успех:`, data);
-      return response;
+      
+      // ВОЗВРАЩАЕМ ОБЪЕКТ С ДАННЫМИ И МЕТОДОМ json()
+      return {
+        ok: true,
+        status: response.status,
+        data: data,
+        json: async () => data // Чтобы код .json() работал
+      };
       
     } catch (error) {
       console.error(`❌ [${requestId}] Попытка ${i + 1} провалилась:`, {
         name: error.name,
-        message: error.message,
-        stack: error.stack?.split('\n')[0]
+        message: error.message
       });
       
       if (i === retries - 1) {
