@@ -4,11 +4,11 @@ let isProcessing = false;
 let currentAbortController = null; // Для отмены предыдущих запросов
 
 // Получаем элементы с проверкой
-const manualInput = document.getElementById('calc-manualInput');
-const serviceSelect = document.getElementById('calc-serviceSelect');
-const fileLabel = document.getElementById('calc-fileLabel');
-const urgentToggle = document.getElementById('calc-urgentToggle');
-const resultBlock = document.getElementById('calc-result');
+const manualInput = document.getElementById('manualInput');
+const serviceSelect = document.getElementById('serviceSelect');
+const fileLabel = document.getElementById('fileLabel');
+const urgentToggle = document.getElementById('urgentToggle');
+const resultBlock = document.getElementById('result');
 
 // Логирование для отладки
 console.log('🔍 Проверка элементов:', {
@@ -142,10 +142,10 @@ function updateUI() {
   }
   
   const allowFile = ['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value);
-  const fileWrapper = document.getElementById("calc-fileWrapper");
+  const fileWrapper = document.getElementById("fileWrapper");
   
   if (fileWrapper) {
-    fileWrapper.classList.toggle('calc-hidden', !allowFile);
+    fileWrapper.classList.toggle('hidden', !allowFile);
   }
 
   const ph = {
@@ -158,7 +158,7 @@ function updateUI() {
   
   manualInput.placeholder = ph[serviceSelect.value] || 'Введите вручную';
   
-  const tooltipText = document.getElementById('calc-tooltipText');
+  const tooltipText = document.getElementById('tooltipText');
   if (tooltipText) {
     tooltipText.classList.add('fade-out');
     
@@ -184,8 +184,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================
   // DRAG AND DROP (инициализация после загрузки DOM)
   // ============================================
-  const dropZone = document.querySelector('.calc-calculator-wrapper');
-  const dropOverlay = document.getElementById('calc-dropOverlay');
+  const dropZone = document.querySelector('.calculator-wrapper');
+  const dropOverlay = document.getElementById('dropOverlay');
   let dragCounter = 0;
 
   console.log('🎯 Drag and Drop элементы:', {
@@ -239,12 +239,12 @@ document.addEventListener("DOMContentLoaded", () => {
         updateUI();
       }
 
-      const fileInput = document.getElementById('calc-fileInput');
+      const fileInput = document.getElementById('fileInput');
       if (fileInput) {
         fileInput.files = e.dataTransfer.files;
         handleFile({ target: { files: e.dataTransfer.files } });
       } else {
-        console.error('❌ calc-fileInput не найден при drop');
+        console.error('❌ fileInput не найден при drop');
       }
     });
   } else {
@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Обновляем текущую дату в футере
   setTimeout(() => {
-    const dateSpan = document.getElementById('calc-currentDate');
+    const dateSpan = document.getElementById('currentDate');
     console.log('🗓️ Элемент даты:', dateSpan);
     
     if (dateSpan) {
@@ -269,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log('📅 Устанавливаем дату:', formatted);
       dateSpan.textContent = formatted;
     } else {
-      console.error('❌ Элемент calc-currentDate не найден');
+      console.error('❌ Элемент currentDate не найден');
     }
   }, 100);
 });
@@ -277,11 +277,11 @@ document.addEventListener("DOMContentLoaded", () => {
 // ============================================
 // FILE INPUT
 // ============================================
-const fileInput = document.getElementById('calc-fileInput');
+const fileInput = document.getElementById('fileInput');
 if (fileInput) {
   fileInput.addEventListener('change', handleFile);
 } else {
-  console.error('❌ calc-fileInput не найден');
+  console.error('❌ fileInput не найден');
 }
 
 // ============================================
@@ -303,11 +303,11 @@ function handleFile(e) {
 
   isProcessing = true;
 
-  const icon = fileLabel.querySelector('.calc-icon');
-  const loader = fileLabel.querySelector('.calc-loader');
+  const icon = fileLabel.querySelector('.icon');
+  const loader = fileLabel.querySelector('.loader');
   
-  if (icon) icon.classList.add('calc-hidden');
-  if (loader) loader.classList.remove('calc-hidden');
+  if (icon) icon.classList.add('hidden');
+  if (loader) loader.classList.remove('hidden');
 
   const done = async (text) => {
     try {
@@ -329,15 +329,15 @@ function handleFile(e) {
       console.error('❌ Ошибка обработки:', err);
       alert("Ошибка при подсчёте слов. Проверьте файл.");
     } finally {
-      if (icon) icon.classList.remove('calc-hidden');
-      if (loader) loader.classList.add('calc-hidden');
+      if (icon) icon.classList.remove('hidden');
+      if (loader) loader.classList.add('hidden');
       isProcessing = false;
     }
   };
 
   const fail = (msg) => {
-    if (icon) icon.classList.remove('calc-hidden');
-    if (loader) loader.classList.add('calc-hidden');
+    if (icon) icon.classList.remove('hidden');
+    if (loader) loader.classList.add('hidden');
     alert(msg);
     isProcessing = false;
   };
@@ -428,7 +428,7 @@ async function calculate() {
   const service = serviceSelect.value;
   let value = parseInt(manualInput.value) || 0;
 
-  const resultContent = resultBlock.querySelector('.calc-result-content');
+  const resultContent = resultBlock.querySelector('.result-content');
   
   if (!value || value <= 0) {
     if (resultContent) {
@@ -590,7 +590,7 @@ async function calculate() {
     `;
 
     setTimeout(() => {
-      const resultContent = resultBlock.querySelector('.calc-result-content');
+      const resultContent = resultBlock.querySelector('.result-content');
       if (resultContent) {
         resultContent.innerHTML = resultText;
       }
@@ -605,13 +605,13 @@ async function calculate() {
     
     console.error('❌ Ошибка расчёта:', error);
     
-    const resultContent = resultBlock.querySelector('.calc-result-content');
+    const resultContent = resultBlock.querySelector('.result-content');
     if (resultContent) {
       resultContent.innerHTML = `
         <p style="color: #ff4444; text-align: center; margin: 0;">
           ❌ Ошибка: ${error.message}
           <br><br>
-          <button onclick="calculate()" style="padding: 8px 16px; background: var(--calc-button-bg); border: none; color: white; border-radius: var(--calc-radius); cursor: pointer;">
+          <button onclick="calculate()" style="padding: 8px 16px; background: var(--button-bg); border: none; color: white; border-radius: var(--radius); cursor: pointer;">
             Попробовать снова
           </button>
         </p>
