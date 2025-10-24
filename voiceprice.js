@@ -313,10 +313,7 @@ const done = async (text) => {
     
     if (!isNaN(count) && count >= 1) {
       if (manualInput) manualInput.value = count;
-      
-      console.log('⏸️ Пауза 1 сек перед calculate()...');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Уменьшили до 1 сек
-      
+            
       // СБРАСЫВАЕМ ФЛАГ ПЕРЕД ВЫЗОВОМ calculate()
       isProcessing = false;
       
