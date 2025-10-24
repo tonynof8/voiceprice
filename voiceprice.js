@@ -309,31 +309,39 @@ function handleFile(e) {
   if (icon) icon.classList.add('hidden');
   if (loader) loader.classList.remove('hidden');
 
-  const done = async (text) => {
-    try {
-      console.log('📄 Подсчитываем слова/символы...');
-      const count = await countBackend(text);
+const done = async (text) => {
+  try {
+    console.log('📄 Подсчитываем слова/символы...');
+    const count = await countBackend(text);
+    
+    if (!isNaN(count) && count >= 1) {
+      if (manualInput) manualInput.value = count;
       
-      if (!isNaN(count) && count >= 1) {
-        if (manualInput) manualInput.value = count;
-        
-        console.log('⏸️ Пауза 2 сек перед calculate()...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        calculate();
-      } else {
-        if (manualInput) manualInput.value = 0;
-        alert("Файл не содержит текста!");
-      }
-    } catch (err) {
-      console.error('❌ Ошибка обработки:', err);
-      alert("Ошибка при подсчёте слов. Проверьте файл.");
-    } finally {
+      console.log('⏸️ Пауза 2 сек перед calculate()...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // СБРАСЫВАЕМ ФЛАГ ПЕРЕД ВЫЗОВОМ calculate()
+      isProcessing = false;
       if (icon) icon.classList.remove('hidden');
       if (loader) loader.classList.add('hidden');
+      
+      console.log('🚀 Запускаем calculate()');
+      calculate();
+    } else {
+      if (manualInput) manualInput.value = 0;
+      alert("Файл не содержит текста!");
       isProcessing = false;
+      if (icon) icon.classList.remove('hidden');
+      if (loader) loader.classList.add('hidden');
     }
-  };
+  } catch (err) {
+    console.error('❌ Ошибка обработки:', err);
+    alert("Ошибка при подсчёте слов. Проверьте файл.");
+    isProcessing = false;
+    if (icon) icon.classList.remove('hidden');
+    if (loader) loader.classList.add('hidden');
+  }
+};
 
   const fail = (msg) => {
     if (icon) icon.classList.remove('hidden');
