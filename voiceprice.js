@@ -4,12 +4,21 @@ let urgent = false;
 let isProcessing = false;
 
 async function fetchWithRetry(url, options, retries = 3) {
+  const requestId = Math.random().toString(36).substring(7);
+  
   for (let i = 0; i < retries; i++) {
     try {
-      console.log(`🔄 Попытка ${i + 1}/${retries}`);
+      console.log(`🔄 [${requestId}] Попытка ${i + 1}/${retries}`);
+      console.log(`📤 [${requestId}] URL:`, url);
+      console.log(`📤 [${requestId}] Body:`, options.body);
+      
+      const startTime = Date.now();
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => {
+        console.error(`⏱️ [${requestId}] Таймаут после 15 сек`);
+        controller.abort();
+      }, 15000);
       
       const response = await fetch(url, {
         ...options,
@@ -18,15 +27,33 @@ async function fetchWithRetry(url, options, retries = 3) {
       
       clearTimeout(timeoutId);
       
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const duration = Date.now() - startTime;
+      console.log(`⏱️ [${requestId}] Ответ за ${duration}ms, статус: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ [${requestId}] Ошибка сервера:`, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log(`✅ [${requestId}] Успех:`, data);
       return response;
       
     } catch (error) {
-      console.warn(`⚠️ Попытка ${i + 1} провалилась:`, error.message);
+      console.error(`❌ [${requestId}] Попытка ${i + 1} провалилась:`, {
+        name: error.name,
+        message: error.message,
+        stack: error.stack?.split('\n')[0]
+      });
       
-      if (i === retries - 1) throw error;
+      if (i === retries - 1) {
+        console.error(`💥 [${requestId}] Все попытки исчерпаны`);
+        throw error;
+      }
       
       const delay = 3000 * (i + 1);
+      console.log(`⏳ [${requestId}] Ждём ${delay}ms перед retry...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
