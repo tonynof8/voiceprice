@@ -114,15 +114,8 @@ window.calcToggleUrgent = function() {
   }
 }
 
-// Enter в поле ввода
-if (manualInput) {
-  manualInput.addEventListener('keypress', function(event) {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      calculate();
-    }
-  });
-}
+// ДОБАВИТЬ ЭТУ СТРОКУ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ
+window.toggleUrgent = window.calcToggleUrgent;
 
 // ============================================
 // ПОДСКАЗКИ ДЛЯ УСЛУГ
