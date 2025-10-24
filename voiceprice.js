@@ -173,6 +173,32 @@ if (serviceSelect) {
 // ============================================
 document.addEventListener("DOMContentLoaded", () => {
   updateUI();
+
+// ============================================
+// ENTER ДЛЯ РАСЧЁТА
+// ============================================
+  if (manualInput) {
+    manualInput.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        console.log('⌨️ Enter нажат, запускаем calculate()');
+        calculate();
+      }
+    });
+    
+    // Дополнительно добавляем keydown (для совместимости)
+    manualInput.addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        console.log('⌨️ Enter (keydown) нажат, запускаем calculate()');
+        calculate();
+      }
+    });
+    
+    console.log('✅ Обработчики Enter добавлены');
+  } else {
+    console.error('❌ manualInput не найден для Enter');
+  }
   
   // ============================================
   // DRAG AND DROP (инициализация после загрузки DOM)
