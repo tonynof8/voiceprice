@@ -3,7 +3,7 @@ let urgent = false;
 
 let isProcessing = false;
 
-async function fetchWithRetry(url, options, retries = 3) {
+async function fetchWithRetry(url, options, retries = 5) {
   const requestId = Math.random().toString(36).substring(7);
   
   for (let i = 0; i < retries; i++) {
@@ -16,9 +16,9 @@ async function fetchWithRetry(url, options, retries = 3) {
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.error(`⏱️ [${requestId}] Таймаут после 15 сек`);
+        console.error(`⏱️ [${requestId}] Таймаут после 20 сек`);
         controller.abort();
-      }, 15000);
+      }, 20000);
       
       const response = await fetch(url, {
         ...options,
@@ -59,7 +59,7 @@ async function fetchWithRetry(url, options, retries = 3) {
         throw error;
       }
       
-      const delay = 3000 * (i + 1);
+      const delay = 2000 * (i + 1);
       console.log(`⏳ [${requestId}] Ждём ${delay}ms перед retry...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
