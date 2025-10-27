@@ -34,34 +34,27 @@ async function fetchWithRetry(url, options, retries = 3, externalSignal = null) 
       
       // Локальный контроллер для таймаута
       const controller = new AbortController();
+      
+      // Используем внешний signal если есть, иначе локальный
       const signal = externalSignal || controller.signal;
       
-      // Агрессивный таймаут для первой попытки: 8 секунд
-      // Для второй и третьей: 15 секунд
-      const timeout = i === 0 ? 8000 : 15000;
-      
       const timeoutId = setTimeout(() => {
-        console.error(`⏱️ [${requestId}] Таймаут после ${timeout/1000} сек`);
-        if (!externalSignal) controller.abort();
-      }, timeout);
+        console.error(`⏱️ [${requestId}] Таймаут после 30 сек`);
+        if (!externalSignal) controller.abort(); // Отменяем только если нет внешнего
+      }, 30000);
       
       const response = await fetch(url, {
         ...options,
         signal: signal,
         mode: 'cors',
         credentials: 'omit',
-        keepalive: false
+        keepalive: false // Закрываем соединение после запроса
       });
       
       clearTimeout(timeoutId);
       
       const duration = Date.now() - startTime;
       console.log(`⏱️ [${requestId}] Ответ за ${duration}ms, статус: ${response.status}`);
-      
-      // Если первый запрос был медленным (>5 сек), логируем это
-      if (i === 0 && duration > 5000) {
-        console.warn(`🐌 [${requestId}] Первый запрос медленный: ${duration}ms (сервер спал?)`);
-      }
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -80,16 +73,9 @@ async function fetchWithRetry(url, options, retries = 3, externalSignal = null) 
       };
       
     } catch (error) {
+      // Если внешний signal отменил - пробрасываем наверх
       if (error.name === 'AbortError') {
-        console.log(`🛑 [${requestId}] Запрос отменён (таймаут)`);
-        
-        // Если это был первый запрос и он завис - retry сразу
-        if (i === 0) {
-          console.log(`🔄 [${requestId}] Сервер спал, пробуем сразу снова...`);
-          await new Promise(resolve => setTimeout(resolve, 500)); // Пауза 0.5 сек
-          continue;
-        }
-        
+        console.log(`🛑 [${requestId}] Запрос отменён`);
         throw error;
       }
       
@@ -103,8 +89,8 @@ async function fetchWithRetry(url, options, retries = 3, externalSignal = null) 
         throw error;
       }
       
-      // Exponential backoff: 1, 2, 4 секунды
-      const delay = Math.min(1000 * Math.pow(2, i), 4000);
+      // Exponential backoff: 2, 4, 8 секунд
+      const delay = Math.min(2000 * Math.pow(2, i), 8000);
       console.log(`⏳ [${requestId}] Ждём ${delay}ms перед retry...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -494,35 +480,9 @@ async function calculate() {
   if (resultContent) {
     resultContent.innerHTML = `
       <div class="spinner"></div>
-      <div id="calc-loading-message" style="margin-top:12px;color:#888;text-align:center;">Считаем стоимость...</div>
-      <div id="calc-loading-timer" style="margin-top:8px;color:#666;font-size:12px;text-align:center;">0 сек</div>
+      <div style="margin-top:12px;color:#888;text-align:center;">Считаем стоимость...</div>
     `;
-  
-    // Таймер для показа времени ожидания
-    let seconds = 0;
-    const timerInterval = setInterval(() => {
-      seconds++;
-      const timerEl = document.getElementById('calc-loading-timer');
-      const messageEl = document.getElementById('calc-loading-message');
-    
-      if (timerEl) {
-        timerEl.textContent = `${seconds} сек`;
-      
-        if (seconds >= 5 && messageEl) {
-          messageEl.textContent = 'Сервер просыпается, подождите...';
-          timerEl.style.color = '#ff9800';
-        }
-      
-        if (seconds >= 10 && messageEl) {
-          messageEl.textContent = 'Сервер долго отвечает, ждём...';
-          timerEl.style.color = '#ff6b35';
-        }
-      }
-    }, 1000);
-  
-  // Сохраняем интервал для очистки
-  window.calcTimerInterval = timerInterval;
-}
+  }
 
   const payload = {
     service: service,
@@ -530,53 +490,29 @@ async function calculate() {
     is_urgent: urgent
   };
 
-try {
-  console.log('💰 Расчёт стоимости...', payload);
-  console.log('🕐 Timestamp:', new Date().toISOString());
-  
-  // Делаем быстрый ping перед основным запросом
-  const pingStart = Date.now();
   try {
-    await fetch('https://telegram-voicebot.onrender.com/calculate', {
-      method: 'HEAD',
-      mode: 'no-cors',
-      keepalive: false
-    });
-    console.log(`🏓 Ping за ${Date.now() - pingStart}ms`);
-  } catch (e) {
-    console.log('🏓 Ping failed (это нормально)');
-  }
-  
-  const response = await fetchWithRetry(
-    "https://telegram-voicebot.onrender.com/calculate",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    },
-    3,
-    currentAbortController.signal
-  );
+    console.log('💰 Расчёт стоимости...', payload);
+    console.log('🕐 Timestamp:', new Date().toISOString());
     
-  const response = await fetchWithRetry(
-    "https://telegram-voicebot.onrender.com/calculate",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    },
-    3,
-    currentAbortController.signal // Передаём signal для отмены
-  );
+    const response = await fetchWithRetry(
+      "https://telegram-voicebot.onrender.com/calculate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      },
+      3,
+      currentAbortController.signal // Передаём signal для отмены
+    );
 
-  const data = await response.json();
-  console.log('✅ Результат:', data);
+    const data = await response.json();
+    console.log('✅ Результат:', data);
 
-  function secondsToTime(sec) {
-    const m = Math.floor(sec / 60);
-    const s = Math.round(sec % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  }
+    function secondsToTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.round(sec % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
 
     let serviceTitle = {
       'voice_text': "Озвучка текста",
@@ -707,24 +643,18 @@ try {
         </p>
       `;
     }
-} finally {
-  isProcessing = false;
-  currentAbortController = null;
-  
-  // Останавливаем таймер
-  if (window.calcTimerInterval) {
-    clearInterval(window.calcTimerInterval);
-    window.calcTimerInterval = null;
+  } finally {
+    isProcessing = false;
+    currentAbortController = null;
+    
+    // РАЗБЛОКИРУЕМ КНОПКУ
+    if (calcButton) {
+      calcButton.disabled = false;
+      calcButton.style.opacity = '1';
+      calcButton.style.cursor = 'pointer';
+      calcButton.textContent = 'Рассчитать стоимость';
+    }
   }
-  
-  // РАЗБЛОКИРУЕМ КНОПКУ
-  if (calcButton) {
-    calcButton.disabled = false;
-    calcButton.style.opacity = '1';
-    calcButton.style.cursor = 'pointer';
-    calcButton.textContent = 'Рассчитать стоимость';
-  }
-}
 }
 
 // Делаем доступными глобально
@@ -740,49 +670,21 @@ window.addEventListener('beforeunload', () => {
     currentAbortController.abort();
   }
 });
-// ============================================
-// АКТИВНЫЙ ПРОГРЕВ СЕРВЕРА
-// ============================================
-let warmupInterval = null;
 
-async function warmupServer() {
+// ============================================
+// ПРОГРЕВ СЕРВЕРА ПРИ ЗАГРУЗКЕ
+// ============================================
+(async function warmupServer() {
   try {
     console.log('🔥 Прогреваем сервер...');
-    const start = Date.now();
-    
     await fetch('https://telegram-voicebot.onrender.com/calculate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        service: 'voice_text', 
-        text: '100', 
-        is_urgent: false 
-      }),
+      body: JSON.stringify({ service: 'voice_text', text: '100', is_urgent: false }),
       keepalive: false
-    });
-    
-    const duration = Date.now() - start;
-    console.log(`✅ Сервер прогрет за ${duration}ms`);
+    }).catch(() => {});
+    console.log('✅ Сервер прогрет');
   } catch (error) {
-    console.log('⚠️ Сервер спит или недоступен');
+    console.log('⚠️ Сервер спит');
   }
-}
-
-// Прогрев при загрузке
-warmupServer();
-
-// Прогрев каждые 5 минут
-warmupInterval = setInterval(() => {
-  console.log('⏰ Плановый прогрев сервера...');
-  warmupServer();
-}, 5 * 60 * 1000); // 5 минут
-
-// Остановка прогрева при закрытии страницы
-window.addEventListener('beforeunload', () => {
-  if (warmupInterval) {
-    clearInterval(warmupInterval);
-  }
-  if (currentAbortController) {
-    currentAbortController.abort();
-  }
-});
+})();
