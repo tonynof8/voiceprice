@@ -417,8 +417,8 @@ async function countBackend(text) {
   
   const service = serviceSelect.value;
   const url = service === 'translate_text'
-    ? "https://telegram-voicebot.onrender.com/count_chars"
-    : "https://telegram-voicebot.onrender.com/count_words";
+    ? "https://tonynof8.pythonanywhere.com/count_chars"
+    : "https://tonynof8.pythonanywhere.com/count_words";
 
   const response = await fetchWithRetry(url, {
     method: "POST",
@@ -495,7 +495,7 @@ async function calculate() {
     console.log('🕐 Timestamp:', new Date().toISOString());
     
     const response = await fetchWithRetry(
-      "https://telegram-voicebot.onrender.com/calculate",
+      "https://tonynof8.pythonanywhere.com/calculate",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -677,7 +677,7 @@ window.addEventListener('beforeunload', () => {
 (async function warmupServer() {
   try {
     console.log('🔥 Прогреваем сервер...');
-    await fetch('https://telegram-voicebot.onrender.com/calculate', {
+    await fetch('https://tonynof8.pythonanywhere.com/calculate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ service: 'voice_text', text: '100', is_urgent: false }),
