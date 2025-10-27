@@ -1,7 +1,15 @@
+// ============================================
+// РАННЯЯ ИНИЦИАЛИЗАЦИЯ ФУНКЦИЙ
+// ============================================
+window.calculate = null;
+window.calcCalculate = null;
+window.toggleUrgent = null;
+window.calcToggleUrgent = null;
+
 let basePrice = 0;
 let urgent = false;
 let isProcessing = false;
-let currentAbortController = null; // Для отмены предыдущих запросов
+let currentAbortController = null;
 
 // Получаем элементы с проверкой
 const manualInput = document.getElementById('manualInput');
@@ -447,7 +455,7 @@ async function countBackend(text) {
 // ============================================
 // РАСЧЁТ СТОИМОСТИ
 // ============================================
-async function calculate() {
+window.calculate = async function() {
   if (isProcessing) {
     console.log('⏳ Уже идёт расчёт...');
     return;
