@@ -558,25 +558,25 @@ try {
     currentAbortController.signal
   );
     
-    const response = await fetchWithRetry(
-      "https://telegram-voicebot.onrender.com/calculate",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      },
-      3,
-      currentAbortController.signal // Передаём signal для отмены
-    );
+  const response = await fetchWithRetry(
+    "https://telegram-voicebot.onrender.com/calculate",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    },
+    3,
+    currentAbortController.signal // Передаём signal для отмены
+  );
 
-    const data = await response.json();
-    console.log('✅ Результат:', data);
+  const data = await response.json();
+  console.log('✅ Результат:', data);
 
-    function secondsToTime(sec) {
-      const m = Math.floor(sec / 60);
-      const s = Math.round(sec % 60);
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
-    }
+  function secondsToTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.round(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  }
 
     let serviceTitle = {
       'voice_text': "Озвучка текста",
