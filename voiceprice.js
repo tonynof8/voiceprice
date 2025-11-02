@@ -1,14 +1,21 @@
+// ============================================
+// VOICEPRICE.JS - Калькулятор стоимости (автономная версия)
+// ============================================
+
+console.log('📦 Загрузка voiceprice.js...');
+
 let basePrice = 0;
 let urgent = false;
 let isProcessing = false;
-let currentAbortController = null; // Для отмены предыдущих запросов
+let isTextMode = false; // false = Файл, true = Текст
+let textDebounceTimer = null;
 
-// Получаем элементы с проверкой
-const manualInput = document.getElementById('manualInput');
-const serviceSelect = document.getElementById('serviceSelect');
-const fileLabel = document.getElementById('fileLabel');
-const urgentToggle = document.getElementById('urgentToggle');
-const resultBlock = document.getElementById('result');
+// Получаем элементы
+const manualInput = document.getElementById('calc-manualInput');
+const serviceSelect = document.getElementById('calc-serviceSelect');
+const fileLabel = document.getElementById('calc-fileLabel');
+const urgentToggle = document.getElementById('calc-urgentToggle');
+const resultBlock = document.getElementById('calc-result');
 
 // Логирование для отладки
 console.log('🔍 Проверка элементов:', {
@@ -20,86 +27,9 @@ console.log('🔍 Проверка элементов:', {
 });
 
 // ============================================
-// ФУНКЦИЯ RETRY С ОТМЕНОЙ ЗАПРОСОВ
-// ============================================
-async function fetchWithRetry(url, options, retries = 3, externalSignal = null) {
-  const requestId = Math.random().toString(36).substring(7);
-  
-  for (let i = 0; i < retries; i++) {
-    try {
-      console.log(`🔄 [${requestId}] Попытка ${i + 1}/${retries}`);
-      console.log(`📤 [${requestId}] URL:`, url);
-      
-      const startTime = Date.now();
-      
-      // Локальный контроллер для таймаута
-      const controller = new AbortController();
-      
-      // Используем внешний signal если есть, иначе локальный
-      const signal = externalSignal || controller.signal;
-      
-      const timeoutId = setTimeout(() => {
-        console.error(`⏱️ [${requestId}] Таймаут после 30 сек`);
-        if (!externalSignal) controller.abort(); // Отменяем только если нет внешнего
-      }, 30000);
-      
-      const response = await fetch(url, {
-        ...options,
-        signal: signal,
-        mode: 'cors',
-        credentials: 'omit',
-        keepalive: false // Закрываем соединение после запроса
-      });
-      
-      clearTimeout(timeoutId);
-      
-      const duration = Date.now() - startTime;
-      console.log(`⏱️ [${requestId}] Ответ за ${duration}ms, статус: ${response.status}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ [${requestId}] Ошибка сервера:`, errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-      
-      const data = await response.json();
-      console.log(`✅ [${requestId}] Успех:`, data);
-      
-      return {
-        ok: true,
-        status: response.status,
-        data: data,
-        json: async () => data
-      };
-      
-    } catch (error) {
-      // Если внешний signal отменил - пробрасываем наверх
-      if (error.name === 'AbortError') {
-        console.log(`🛑 [${requestId}] Запрос отменён`);
-        throw error;
-      }
-      
-      console.error(`❌ [${requestId}] Попытка ${i + 1} провалилась:`, {
-        name: error.name,
-        message: error.message
-      });
-      
-      if (i === retries - 1) {
-        console.error(`💥 [${requestId}] Все попытки исчерпаны`);
-        throw error;
-      }
-      
-      // Exponential backoff: 2, 4, 8 секунд
-      const delay = Math.min(2000 * Math.pow(2, i), 8000);
-      console.log(`⏳ [${requestId}] Ждём ${delay}ms перед retry...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-}
-
-// ============================================
 // ПЕРЕКЛЮЧАТЕЛЬ СРОЧНОСТИ
 // ============================================
+
 window.calcToggleUrgent = function() {
   if (!urgentToggle || !manualInput) {
     console.error('❌ Элементы не найдены для toggleUrgent');
@@ -107,19 +37,17 @@ window.calcToggleUrgent = function() {
   }
   
   urgent = !urgent;
-  urgentToggle.classList.toggle('active', urgent);
+  urgentToggle.classList.toggle('calc-active', urgent);
   
   if (manualInput.value && parseInt(manualInput.value) > 0) {
     calculate();
   }
 }
 
-// ДОБАВИТЬ ЭТУ СТРОКУ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ
-window.toggleUrgent = window.calcToggleUrgent;
-
 // ============================================
 // ПОДСКАЗКИ ДЛЯ УСЛУГ
 // ============================================
+
 const serviceTips = {
   "voice_text": "⚡ Загрузите txt или docx, или укажите точное количество слов для озвучки. Все числа, сокращения и единицы должны быть записаны полностью — так, как вы хотите, чтобы их произнесли. Например: 32 м - тридцать два метра",
   "voice_video": "⏱️ Длительность видео необходимо вводить с округлением в большую сторону. 6 минут 3 секунды => 7 минут",
@@ -134,13 +62,29 @@ function updateUI() {
     return;
   }
   
-  const allowFile = ['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value);
-  const fileWrapper = document.getElementById("fileWrapper");
+  const service = serviceSelect.value;
+  const allowFile = ['voice_text', 'translate_text', 'voice_camera'].includes(service);
   
-  if (fileWrapper) {
-    fileWrapper.classList.toggle('hidden', !allowFile);
+  // Показываем/скрываем toggle [Файл]
+  const modeToggle = document.getElementById('calc-modeToggle');
+  if (modeToggle) {
+    if (allowFile) {
+      modeToggle.style.display = '';  // Показываем
+    } else {
+      modeToggle.style.display = 'none';  // Скрываем полностью
+      // Возвращаем в режим файла если toggle был скрыт в режиме текста
+      if (isTextMode) {
+        isTextMode = false;
+        const modeIcon = modeToggle.querySelector('.calc-mode-icon');
+        const modeText = modeToggle.querySelector('.calc-mode-text');
+        modeToggle.classList.remove('calc-active');
+        if (modeIcon) modeIcon.textContent = '📎';
+        if (modeText) modeText.textContent = 'Файл';
+      }
+    }
   }
 
+  // Плейсхолдеры для поля ввода
   const ph = {
     'voice_text': 'Введите количество слов',
     'voice_video': 'Введите длительность видео (минуты)',
@@ -149,19 +93,89 @@ function updateUI() {
     'voice_camera': 'Введите количество слов'
   };
   
-  manualInput.placeholder = ph[serviceSelect.value] || 'Введите вручную';
+  manualInput.placeholder = ph[service] || 'Введите вручную';
   
-  const tooltipText = document.getElementById('tooltipText');
-  if (tooltipText) {
-    tooltipText.classList.add('fade-out');
-    
-    setTimeout(() => {
-      tooltipText.textContent = serviceTips[serviceSelect.value] || "";
-      tooltipText.classList.remove('fade-out');
-    }, 300);
+  // Очищаем поле ввода при смене услуги
+  manualInput.value = '';
+  
+  // Очищаем textarea если в режиме текста
+  const textarea = document.getElementById('calc-textArea');
+  if (textarea) {
+    textarea.value = '';
+    updateTextStats();
   }
   
-  manualInput.value = '';
+  // ВАЖНО: Восстанавливаем структуру resultContent с tooltipText
+  const resultContentBlock = document.getElementById('calc-resultContent');
+  
+  if (resultContentBlock) {
+    // Очищаем старые результаты и восстанавливаем базовую структуру
+    resultContentBlock.innerHTML = '<div class="calc-tooltip-info" id="calc-tooltipText"></div>';
+  }
+  
+  // ВАЖНО: Вызываем updateResultZone() ПОСЛЕ очистки, чтобы она заполнила контент
+  updateResultZone();
+}
+
+function updateResultZone() {
+  const service = serviceSelect ? serviceSelect.value : 'voice_text';
+  const fileZone = document.getElementById('calc-fileZone');
+  const textZone = document.getElementById('calc-textZone');
+  const resultContent = document.getElementById('calc-resultContent');
+  
+  if (!fileZone || !textZone || !resultContent) return;
+  
+  const allowFile = ['voice_text', 'translate_text', 'voice_camera'].includes(service);
+  
+  // Если услуга НЕ поддерживает файлы (видео)
+  if (!allowFile) {
+    fileZone.classList.add('calc-hidden');
+    textZone.classList.add('calc-hidden');
+    resultContent.classList.remove('calc-hidden');
+    
+    // Показываем подсказку для видео
+    const tooltipText = document.getElementById('calc-tooltipText');
+    if (tooltipText) {
+      if (service === 'voice_video') {
+        tooltipText.innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            <div class="calc-tooltip-icon">🎬</div>
+            <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Озвучка видео</div>
+            <div style="font-size: 0.95rem; opacity: 0.8;">Длительность видео необходимо вводить с округлением в большую сторону.</div>
+            <div style="font-size: 0.9rem; opacity: 0.7; margin-top: 8px;">Например: 6 минут 3 секунды → 7 минут</div>
+          </div>
+        `;
+      } else if (service === 'translate_voice') {
+        tooltipText.innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            <div class="calc-tooltip-icon">🌍🎬</div>
+            <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Перевод + озвучка видео</div>
+            <div style="font-size: 0.95rem; opacity: 0.8;">Длительность видео необходимо вводить с округлением в большую сторону.</div>
+            <div style="font-size: 0.9rem; opacity: 0.7; margin-top: 8px;">Например: 6 минут 3 секунды → 7 минут</div>
+          </div>
+        `;
+      }
+    }
+  } else {
+    // Для текстовых услуг - показываем нужный режим
+    
+    // ВАЖНО: Сбрасываем состояние fileZone (скрываем loader, показываем контент)
+    const fileZoneContent = fileZone ? fileZone.querySelector('.calc-file-zone-content') : null;
+    const fileZoneLoader = fileZone ? fileZone.querySelector('.calc-file-zone-loader') : null;
+    
+    if (fileZoneContent) fileZoneContent.classList.remove('calc-hidden');
+    if (fileZoneLoader) fileZoneLoader.classList.add('calc-hidden');
+    
+    if (isTextMode) {
+      fileZone.classList.add('calc-hidden');
+      textZone.classList.remove('calc-hidden');
+      resultContent.classList.add('calc-hidden');
+    } else {
+      fileZone.classList.remove('calc-hidden');
+      textZone.classList.add('calc-hidden');
+      resultContent.classList.add('calc-hidden');
+    }
+  }
 }
 
 if (serviceSelect) {
@@ -171,65 +185,41 @@ if (serviceSelect) {
 // ============================================
 // ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ
 // ============================================
+
 document.addEventListener("DOMContentLoaded", () => {
   updateUI();
-
-// ============================================
-// ENTER ДЛЯ РАСЧЁТА
-// ============================================
+  
+  // Enter для расчёта
   if (manualInput) {
     manualInput.addEventListener('keypress', function(event) {
       if (event.key === 'Enter') {
         event.preventDefault();
-        console.log('⌨️ Enter нажат, запускаем calculate()');
         calculate();
       }
     });
-    
-    // Дополнительно добавляем keydown (для совместимости)
-    manualInput.addEventListener('keydown', function(event) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        console.log('⌨️ Enter (keydown) нажат, запускаем calculate()');
-        calculate();
-      }
-    });
-    
-    console.log('✅ Обработчики Enter добавлены');
-  } else {
-    console.error('❌ manualInput не найден для Enter');
   }
   
-  // ============================================
-  // DRAG AND DROP (инициализация после загрузки DOM)
-  // ============================================
-  const dropZone = document.querySelector('.calculator-wrapper');
-  const dropOverlay = document.getElementById('dropOverlay');
+  // Drag and Drop
+  const dropZone = document.querySelector('.calc-calculator-wrapper');
+  const dropOverlay = document.getElementById('calc-dropOverlay');
   let dragCounter = 0;
 
-  console.log('🎯 Drag and Drop элементы:', {
-    dropZone: dropZone,
-    dropOverlay: dropOverlay
-  });
-
   if (dropZone && dropOverlay) {
-    console.log('✅ Drag and Drop инициализирован');
-    
     dropZone.addEventListener('dragenter', (e) => {
       e.preventDefault();
       e.stopPropagation();
       dragCounter++;
-      console.log('📥 dragenter, counter:', dragCounter);
-      dropOverlay.classList.add('active');
+      
+      // Показываем overlay ВСЕГДА
+      dropOverlay.classList.add('calc-active');
     });
 
     dropZone.addEventListener('dragleave', (e) => {
       e.preventDefault();
       e.stopPropagation();
       dragCounter--;
-      console.log('📤 dragleave, counter:', dragCounter);
       if (dragCounter === 0) {
-        dropOverlay.classList.remove('active');
+        dropOverlay.classList.remove('calc-active');
       }
     });
 
@@ -242,70 +232,54 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       e.stopPropagation();
       dragCounter = 0;
-      console.log('📦 drop событие');
-      dropOverlay.classList.remove('active');
+      dropOverlay.classList.remove('calc-active');
 
       const file = e.dataTransfer.files[0];
-      console.log('📄 Файл:', file?.name, file?.type);
       
       if (!file || !['text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
         alert('Поддерживаются только .txt и .docx');
         return;
       }
 
-      if (serviceSelect && !['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value)) {
-        serviceSelect.value = 'voice_text';
-        updateUI();
+      // Автоматически переключаем на подходящую услугу
+      if (serviceSelect) {
+        const allowFile = ['voice_text', 'translate_text', 'voice_camera'].includes(serviceSelect.value);
+        
+        if (!allowFile) {
+          // Переключаем на "Озвучка текста" по умолчанию
+          serviceSelect.value = 'voice_text';
+          updateUI();
+          console.log('📝 Автоматически переключено на "Озвучка текста"');
+        }
+        
+        // Если в режиме текста - переключаем на файл
+        if (isTextMode) {
+          calcToggleMode();
+        }
       }
 
-      const fileInput = document.getElementById('fileInput');
+      const fileInput = document.getElementById('calc-fileInput');
       if (fileInput) {
         fileInput.files = e.dataTransfer.files;
         handleFile({ target: { files: e.dataTransfer.files } });
-      } else {
-        console.error('❌ fileInput не найден при drop');
       }
     });
-  } else {
-    console.error('❌ Drag and Drop не инициализирован:', {
-      dropZone: !!dropZone,
-      dropOverlay: !!dropOverlay
-    });
   }
-  
-  // Обновляем текущую дату в футере
-  setTimeout(() => {
-    const dateSpan = document.getElementById('currentDate');
-    console.log('🗓️ Элемент даты:', dateSpan);
-    
-    if (dateSpan) {
-      const today = new Date();
-      const formatted = today.toLocaleDateString('ru-RU', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric' 
-      });
-      console.log('📅 Устанавливаем дату:', formatted);
-      dateSpan.textContent = formatted;
-    } else {
-      console.error('❌ Элемент currentDate не найден');
-    }
-  }, 100);
 });
 
 // ============================================
 // FILE INPUT
 // ============================================
-const fileInput = document.getElementById('fileInput');
+
+const fileInput = document.getElementById('calc-fileInput');
 if (fileInput) {
   fileInput.addEventListener('change', handleFile);
-} else {
-  console.error('❌ fileInput не найден');
 }
 
 // ============================================
 // ОБРАБОТКА ФАЙЛА
 // ============================================
+
 function handleFile(e) {
   if (isProcessing) {
     console.log('⏳ Уже обрабатывается файл...');
@@ -315,55 +289,75 @@ function handleFile(e) {
   const file = e.target.files[0];
   if (!file) return;
 
-  if (!fileLabel || !resultBlock) {
-    console.error('❌ Элементы не найдены в handleFile');
-    return;
-  }
-
   isProcessing = true;
 
-  const icon = fileLabel.querySelector('.icon');
-  const loader = fileLabel.querySelector('.loader');
+  // СНАЧАЛА скрываем результат и показываем fileZone с loader
+  const fileZone = document.getElementById('calc-fileZone');
+  const textZone = document.getElementById('calc-textZone');
+  const resultContent = document.getElementById('calc-resultContent');
+  const fileZoneContent = fileZone ? fileZone.querySelector('.calc-file-zone-content') : null;
+  const fileZoneLoader = fileZone ? fileZone.querySelector('.calc-file-zone-loader') : null;
   
-  if (icon) icon.classList.add('hidden');
-  if (loader) loader.classList.remove('hidden');
+  // Показываем fileZone, скрываем результат
+  if (fileZone) fileZone.classList.remove('calc-hidden');
+  if (textZone) textZone.classList.add('calc-hidden');
+  if (resultContent) resultContent.classList.add('calc-hidden');
+  
+  // Показываем loader
+  if (fileZoneContent) fileZoneContent.classList.add('calc-hidden');
+  if (fileZoneLoader) fileZoneLoader.classList.remove('calc-hidden');
 
-const done = async (text) => {
-  try {
-    console.log('📄 Подсчитываем слова/символы...');
-    const count = await countBackend(text);
-    
-    // СРАЗУ УБИРАЕМ СПИННЕР ПОСЛЕ ПОДСЧЁТА
-    if (icon) icon.classList.remove('hidden');
-    if (loader) loader.classList.add('hidden');
-    
-    if (!isNaN(count) && count >= 1) {
-      if (manualInput) manualInput.value = count;
-            
-      // СБРАСЫВАЕМ ФЛАГ ПЕРЕД ВЫЗОВОМ calculate()
-      isProcessing = false;
+  const done = async (text) => {
+    try {
+      console.log('📄 Подсчитываем слова/символы локально...');
       
-      console.log('🚀 Запускаем calculate()');
-      calculate();
-    } else {
-      if (manualInput) manualInput.value = 0;
-      alert("Файл не содержит текста!");
+      // ДОБАВЛЯЕМ СЛУЧАЙНУЮ ЗАДЕРЖКУ 1-2 СЕКУНДЫ
+      const randomDelay = 1000 + Math.random() * 1000; // 1000-2000ms
+      await new Promise(resolve => setTimeout(resolve, randomDelay));
+      
+      const service = serviceSelect.value;
+      const count = service === 'translate_text' 
+        ? window.PricingCalculator.countChars(text)
+        : window.PricingCalculator.countWords(text);
+      
+      console.log(`✅ Подсчитано: ${count}`);
+      
+      // НЕ показываем обратно fileZone, loader остаётся пока не появится результат
+      
+      if (!isNaN(count) && count >= 1) {
+        if (manualInput) manualInput.value = count;
+        
+        // Небольшая пауза перед расчётом
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        isProcessing = false;
+        
+        console.log('🚀 Запускаем calculate()');
+        calculate();
+      } else {
+        // Показываем обратно fileZone только если ошибка
+        if (fileZoneContent) fileZoneContent.classList.remove('calc-hidden');
+        if (fileZoneLoader) fileZoneLoader.classList.add('calc-hidden');
+        
+        if (manualInput) manualInput.value = 0;
+        alert("Файл не содержит текста!");
+        isProcessing = false;
+      }
+    } catch (err) {
+      // Показываем обратно fileZone при ошибке
+      if (fileZoneContent) fileZoneContent.classList.remove('calc-hidden');
+      if (fileZoneLoader) fileZoneLoader.classList.add('calc-hidden');
+      
+      console.error('❌ Ошибка обработки:', err);
+      alert("Ошибка при подсчёте слов. Проверьте файл.");
       isProcessing = false;
     }
-  } catch (err) {
-    // При ошибке тоже убираем спиннер
-    if (icon) icon.classList.remove('hidden');
-    if (loader) loader.classList.add('hidden');
-    
-    console.error('❌ Ошибка обработки:', err);
-    alert("Ошибка при подсчёте слов. Проверьте файл.");
-    isProcessing = false;
-  }
-};
+  };
 
   const fail = (msg) => {
-    if (icon) icon.classList.remove('hidden');
-    if (loader) loader.classList.add('hidden');
+    // Показываем обратно fileZone при ошибке
+    if (fileZoneContent) fileZoneContent.classList.remove('calc-hidden');
+    if (fileZoneLoader) fileZoneLoader.classList.add('calc-hidden');
     alert(msg);
     isProcessing = false;
   };
@@ -377,8 +371,7 @@ const done = async (text) => {
       if (looksBroken) {
         const fallbackReader = new FileReader();
         fallbackReader.onload = function (e) {
-          const recoveredText = e.target.result;
-          done(recoveredText);
+          done(e.target.result);
         };
         fallbackReader.onerror = () => fail("Не удалось прочитать .txt файл (кодировка).");
         fallbackReader.readAsText(file, 'windows-1251');
@@ -393,8 +386,7 @@ const done = async (text) => {
     reader.onload = function (event) {
       mammoth.extractRawText({ arrayBuffer: event.target.result })
         .then(result => {
-          const text = result.value || '';
-          done(text);
+          done(result.value || '');
         })
         .catch(err => {
           fail("Не удалось извлечь текст из .docx файла.");
@@ -408,32 +400,10 @@ const done = async (text) => {
 }
 
 // ============================================
-// ПОДСЧЁТ СЛОВ/СИМВОЛОВ НА СЕРВЕРЕ
+// РАСЧЁТ СТОИМОСТИ (БЕЗ API!)
 // ============================================
-async function countBackend(text) {
-  if (!serviceSelect) {
-    throw new Error('serviceSelect не найден');
-  }
-  
-  const service = serviceSelect.value;
-  const url = service === 'translate_text'
-    ? "https://telegram-voicebot.onrender.com/count_chars"
-    : "https://telegram-voicebot.onrender.com/count_words";
 
-  const response = await fetchWithRetry(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, service })
-  }, 3);
-
-  const data = await response.json();
-  return service === 'translate_text' ? data.chars : data.words;
-}
-
-// ============================================
-// РАСЧЁТ СТОИМОСТИ
-// ============================================
-async function calculate() {
+function calculate() {
   if (isProcessing) {
     console.log('⏳ Уже идёт расчёт...');
     return;
@@ -444,17 +414,10 @@ async function calculate() {
     return;
   }
 
-  // ОТМЕНЯЕМ ПРЕДЫДУЩИЙ ЗАПРОС ЕСЛИ ЕСТЬ
-  if (currentAbortController) {
-    console.log('🛑 Отменяем предыдущий запрос');
-    currentAbortController.abort();
-    currentAbortController = null;
-  }
-
   const service = serviceSelect.value;
   let value = parseInt(manualInput.value) || 0;
 
-  const resultContent = resultBlock.querySelector('.result-content');
+  const resultContent = resultBlock.querySelector('.calc-result-content');
   
   if (!value || value <= 0) {
     if (resultContent) {
@@ -464,227 +427,410 @@ async function calculate() {
   }
 
   isProcessing = true;
-  
-  // СОЗДАЁМ НОВЫЙ КОНТРОЛЛЕР
-  currentAbortController = new AbortController();
-  
-  // БЛОКИРУЕМ КНОПКУ
-  const calcButton = document.querySelector('button[onclick="calcCalculate()"]');
-  if (calcButton) {
-    calcButton.disabled = true;
-    calcButton.style.opacity = '0.5';
-    calcButton.style.cursor = 'not-allowed';
-    calcButton.textContent = 'Рассчитываем...';
-  }
 
   if (resultContent) {
     resultContent.innerHTML = `
-      <div class="spinner"></div>
+      <div class="calc-spinner"></div>
       <div style="margin-top:12px;color:#888;text-align:center;">Считаем стоимость...</div>
     `;
   }
 
-  const payload = {
-    service: service,
-    text: value.toString(),
-    is_urgent: urgent
-  };
+  setTimeout(() => {
+    try {
+      console.log('💰 Расчёт стоимости (локально)...', {service, value, urgent});
+      
+      const result = window.PricingCalculator.calculatePrice(service, value, urgent);
+      
+      console.log('✅ Результат:', result);
 
-  try {
-    console.log('💰 Расчёт стоимости...', payload);
-    console.log('🕐 Timestamp:', new Date().toISOString());
-    
-    const response = await fetchWithRetry(
-      "https://telegram-voicebot.onrender.com/calculate",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      },
-      3,
-      currentAbortController.signal // Передаём signal для отмены
-    );
+      const serviceTitle = {
+        'voice_text': "Озвучка текста",
+        'voice_video': "Озвучка видео",
+        'translate_text': "Перевод текста",
+        'translate_voice': "Перевод + озвучка видео",
+        'voice_camera': "Озвучка текста на камеру"
+      }[service] || "";
 
-    const data = await response.json();
-    console.log('✅ Результат:', data);
+      let resultText = ``;
 
-    function secondsToTime(sec) {
-      const m = Math.floor(sec / 60);
-      const s = Math.round(sec % 60);
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
-    }
-
-    let serviceTitle = {
-      'voice_text': "Озвучка текста",
-      'voice_video': "Озвучка видео",
-      'translate_text': "Перевод текста",
-      'translate_voice': "Перевод + озвучка видео",
-      'voice_camera': "Озвучка текста на камеру"
-    }[service] || "";
-
-    let resultText = ``;
-
-    resultText += `
-      <div class="result-row">
-        <div class="icon">📦</div>
-        <div class="label">Услуга:</div>
-        <div class="value">${serviceTitle}${urgent ? " (СРОЧНО)" : ""}</div>
-      </div>
-    `;
-
-    if (service === 'voice_text' || service === 'voice_camera') {
-      const words = data.word_count;
-      const minutes = Math.ceil(words / 120);
-      const optimal_time = secondsToTime(Math.round(words * 60 / 133));
       resultText += `
-        <div class="result-row">
-          <div class="icon">📄</div>
-          <div class="label">Слов:</div>
-          <div class="value">${words}</div>
-        </div>
-        <div class="result-row">
-          <div class="icon">🕑</div>
-          <div class="label">До:</div>
-          <div class="value">${minutes} минут</div>
-        </div>
-        <div class="result-row">
-          <div class="icon">🎯</div>
-          <div class="label">Оптимальный хронометраж:</div>
-          <div class="value">${optimal_time}</div>
+        <div class="calc-result-row">
+          <span class="calc-icon">📦</span>
+          <span class="calc-label">Услуга:</span>
+          <span class="calc-value">${serviceTitle}${urgent ? " (СРОЧНО)" : ""}</span>
         </div>
       `;
-    }
 
-    if (service === 'voice_video' || service === 'translate_voice') {
-      resultText += `
-        <div class="result-row">
-          <div class="icon">🕑</div>
-          <div class="label">До:</div>
-          <div class="value">${value} минут</div>
-        </div>
-      `;
-    }
-
-    if (service === 'translate_text') {
-      resultText += `
-        <div class="result-row">
-          <div class="icon">📝</div>
-          <div class="label">Знаков без пробелов:</div>
-          <div class="value">${value}</div>
-        </div>
-      `;
-    }
-
-    const deadline = urgent ? data.deadline_urgent : data.deadline;
-    const match = deadline.match(/^(.+?) \(до (.+?) включительно\)$/);
-
-    let daysOnly = '';
-    if (match?.[1]) {
-      const num = parseInt(match[1]);
-      if (!isNaN(num)) {
-        daysOnly = num === 1 ? '1 день' : `до ${num} дней`;
-      } else {
-        daysOnly = `до ${match[1]}`;
+      if (service === 'voice_text' || service === 'voice_camera') {
+        resultText += `
+          <div class="calc-result-row">
+            <span class="calc-icon">📄</span>
+            <span class="calc-label">Слов:</span>
+            <span class="calc-value">${result.wordCount}</span>
+          </div>
+          <div class="calc-result-row">
+            <span class="calc-icon">🕑</span>
+            <span class="calc-label">До:</span>
+            <span class="calc-value">${result.durationMinutes} минут</span>
+          </div>
+          <div class="calc-result-row">
+            <span class="calc-icon">🎯</span>
+            <span class="calc-label">Оптимальный хронометраж:</span>
+            <span class="calc-value">${result.optimalTiming}</span>
+          </div>
+        `;
       }
-    }
 
-    const dateOnly = match?.[2] || "";
+      if (service === 'voice_video' || service === 'translate_voice') {
+        resultText += `
+          <div class="calc-result-row">
+            <span class="calc-icon">🕑</span>
+            <span class="calc-label">До:</span>
+            <span class="calc-value">${value} минут</span>
+          </div>
+        `;
+      }
 
-    resultText += `
-      <div class="result-row">
-        <div class="icon">⏰</div>
-        <div class="label">Срок выполнения:</div>
-        <div class="value">${daysOnly}</div>
-      </div>
-      <div class="result-row">
-        <div class="icon">📅</div>
-        <div class="label">Дедлайн:</div>
-        <div class="value">${dateOnly}</div>
-      </div>
-    `;
+      if (service === 'translate_text') {
+        resultText += `
+          <div class="calc-result-row">
+            <span class="calc-icon">📝</span>
+            <span class="calc-label">Знаков без пробелов:</span>
+            <span class="calc-value">${value}</span>
+          </div>
+        `;
+      }
 
-    resultText += `
-      <div class="result-row">
-        <div class="icon">💰</div>
-        <div class="label">Стоимость:</div>
-        <div class="value">${
-          urgent
-            ? `${data.price_rub.toLocaleString('ru-RU')} ₽ ➡️ ${data.price_rub_urgent.toLocaleString('ru-RU')} ₽`
-            : `${data.price_rub.toLocaleString('ru-RU')} ₽`
-        }</div>
-      </div>
-    `;
+      resultText += `
+        <div class="calc-result-row">
+          <span class="calc-icon">⏰</span>
+          <span class="calc-label">Срок выполнения:</span>
+          <span class="calc-value">${result.deadline.days} ${pluralizeDay(result.deadline.days)}</span>
+        </div>
+        <div class="calc-result-row">
+          <span class="calc-icon">📅</span>
+          <span class="calc-label">Дедлайн:</span>
+          <span class="calc-value">${result.deadline.date}</span>
+        </div>
+      `;
 
-    setTimeout(() => {
-      const resultContent = resultBlock.querySelector('.result-content');
+      resultText += `
+        <div class="calc-result-row">
+          <span class="calc-icon">💰</span>
+          <span class="calc-label">Стоимость:</span>
+          <span class="calc-value">${
+            urgent
+              ? `${result.priceNormal.toLocaleString('ru-RU')} ₽ ➡️ ${result.priceUrgent.toLocaleString('ru-RU')} ₽`
+              : `${result.priceNormal.toLocaleString('ru-RU')} ₽`
+          }</span>
+        </div>
+      `;
+
+      // Кнопка "Заказать"
+      // Кнопка "Заказать"
+      /*resultText += `
+        <div style="margin-top: 20px;">
+          <button class="calc-order-button" onclick="showContactOptions()">
+            Заказать
+          </button>
+        </div>
+      `;*/
+      
+      // Сохраняем результат для возврата
+      window.lastCalculationResult = resultText;
+
       if (resultContent) {
         resultContent.innerHTML = resultText;
       }
-    }, 600 + Math.random() * 400);
 
-  } catch (error) {
-    // Игнорируем ошибки отмены
-    if (error.name === 'AbortError') {
-      console.log('🛑 Запрос отменён пользователем');
-      return;
+            // Показываем результат
+            const fileZone = document.getElementById('calc-fileZone');
+            const textZone = document.getElementById('calc-textZone');
+            const resultContentBlock = document.getElementById('calc-resultContent');
+            
+            if (fileZone) fileZone.classList.add('calc-hidden');
+            if (textZone) textZone.classList.add('calc-hidden');
+            if (resultContentBlock) resultContentBlock.classList.remove('calc-hidden');
+
+    } catch (error) {
+      console.error('❌ Ошибка расчёта:', error);
+      
+      if (resultContent) {
+        resultContent.innerHTML = `
+          <p style="color: #ff4444; text-align: center; margin: 0;">
+            ❌ Ошибка: ${error.message}
+          </p>
+        `;
+      }
+    } finally {
+      isProcessing = false;
     }
-    
-    console.error('❌ Ошибка расчёта:', error);
-    
-    const resultContent = resultBlock.querySelector('.result-content');
-    if (resultContent) {
-      resultContent.innerHTML = `
-        <p style="color: #ff4444; text-align: center; margin: 0;">
-          ❌ Ошибка: ${error.message}
-          <br><br>
-          <button onclick="calculate()" style="padding: 8px 16px; background: var(--button-bg); border: none; color: white; border-radius: var(--radius); cursor: pointer;">
-            Попробовать снова
-          </button>
-        </p>
-      `;
-    }
-  } finally {
-    isProcessing = false;
-    currentAbortController = null;
-    
-    // РАЗБЛОКИРУЕМ КНОПКУ
-    if (calcButton) {
-      calcButton.disabled = false;
-      calcButton.style.opacity = '1';
-      calcButton.style.cursor = 'pointer';
-      calcButton.textContent = 'Рассчитать стоимость';
-    }
+  }, 300);
+}
+
+function pluralizeDay(n) {
+  if (n % 10 === 1 && n % 100 !== 11) {
+    return "день";
+  } else if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) {
+    return "дня";
+  } else {
+    return "дней";
   }
 }
 
-// Делаем доступными глобально
 window.calcCalculate = calculate;
 window.calculate = calculate;
 
-// ============================================
-// ОЧИСТКА ПРИ УХОДЕ СО СТРАНИЦЫ
-// ============================================
-window.addEventListener('beforeunload', () => {
-  if (currentAbortController) {
-    console.log('🧹 Очистка: отмена запросов');
-    currentAbortController.abort();
-  }
-});
 
 // ============================================
-// ПРОГРЕВ СЕРВЕРА ПРИ ЗАГРУЗКЕ
+// ПЕРЕКЛЮЧЕНИЕ РЕЖИМА: Файл / Текст
 // ============================================
-(async function warmupServer() {
-  try {
-    console.log('🔥 Прогреваем сервер...');
-    await fetch('https://telegram-voicebot.onrender.com/calculate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ service: 'voice_text', text: '100', is_urgent: false }),
-      keepalive: false
-    }).catch(() => {});
-    console.log('✅ Сервер прогрет');
-  } catch (error) {
-    console.log('⚠️ Сервер спит');
+
+window.calcToggleMode = function() {
+  const modeToggle = document.getElementById('calc-modeToggle');
+  const fileZone = document.getElementById('calc-fileZone');
+  const textZone = document.getElementById('calc-textZone');
+  const resultContent = document.getElementById('calc-resultContent');
+  
+  if (!modeToggle || !fileZone || !textZone || !resultContent) {
+    console.error('❌ Элементы режима не найдены');
+    return;
   }
-})();
+  
+  isTextMode = !isTextMode;
+  
+  if (isTextMode) {
+    // РЕЖИМ ТЕКСТА - просто загораем кнопку
+    modeToggle.classList.add('calc-active');
+    
+    fileZone.classList.add('calc-hidden');
+    textZone.classList.remove('calc-hidden');
+    resultContent.classList.add('calc-hidden');
+    
+    // Фокус на textarea
+    const textarea = document.getElementById('calc-textArea');
+    if (textarea) {
+      setTimeout(() => textarea.focus(), 100);
+      
+      // Подсчёт в реальном времени
+      textarea.oninput = function() {
+        clearTimeout(textDebounceTimer);
+        textDebounceTimer = setTimeout(() => {
+          updateTextStats();
+        }, 300);
+      };
+    }
+  } else {
+    // РЕЖИМ ФАЙЛА - гасим кнопку
+    modeToggle.classList.remove('calc-active');
+    
+    fileZone.classList.remove('calc-hidden');
+    textZone.classList.add('calc-hidden');
+    resultContent.classList.add('calc-hidden');
+    
+    // ВАЖНО: Сбрасываем состояние зоны файла
+    const fileZoneContent = fileZone ? fileZone.querySelector('.calc-file-zone-content') : null;
+    const fileZoneLoader = fileZone ? fileZone.querySelector('.calc-file-zone-loader') : null;
+    
+    if (fileZoneContent) fileZoneContent.classList.remove('calc-hidden');
+    if (fileZoneLoader) fileZoneLoader.classList.add('calc-hidden');
+    
+    // Очищаем textarea
+    const textarea = document.getElementById('calc-textArea');
+    if (textarea) textarea.value = '';
+    updateTextStats();
+  }
+}
+
+// ============================================
+// ПОДСЧЁТ СЛОВ/СИМВОЛОВ В TEXTAREA
+// ============================================
+
+function updateTextStats() {
+  const textarea = document.getElementById('calc-textArea');
+  const wordCountEl = document.getElementById('calc-textWordCount');
+  const charCountEl = document.getElementById('calc-textCharCount');
+  
+  if (!textarea || !wordCountEl || !charCountEl) return;
+  
+  const text = textarea.value;
+  const service = serviceSelect ? serviceSelect.value : 'voice_text';
+  
+  const wordCount = window.PricingCalculator.countWords(text);
+  const charCount = window.PricingCalculator.countChars(text);
+  
+  wordCountEl.textContent = wordCount.toLocaleString('ru-RU');
+  charCountEl.textContent = charCount.toLocaleString('ru-RU');
+  
+  // Автоматически подставляем число в поле
+  if (manualInput) {
+    const count = service === 'translate_text' ? charCount : wordCount;
+    manualInput.value = count > 0 ? count : '';
+  }
+}
+
+// ============================================
+// ВСТРОЕННЫЙ ВЫБОР КАНАЛА СВЯЗИ
+// ============================================
+
+let orderData = {}; // Данные для заказа
+let lastCalculationResult = ''; // Сохранённый результат расчёта
+
+window.showContactOptions = function() {
+  const resultContent = document.getElementById('calc-resultContent');
+  if (!resultContent) return;
+  
+  // Сохраняем данные заказа
+  const service = serviceSelect ? serviceSelect.value : '';
+  const value = manualInput ? parseInt(manualInput.value) : 0;
+  
+  const serviceTitles = {
+    'voice_text': "Озвучка текста",
+    'voice_dubbing': "Дубляж",
+    'voice_video': "Озвучка видео",
+    'translate_text': "Перевод текста",
+    'translate_voice': "Перевод + озвучка видео",
+    'voice_camera': "Озвучка текста на камеру"
+  };
+  
+  const result = window.PricingCalculator.calculatePrice(service, value, urgent);
+  
+  orderData = {
+    service: serviceTitles[service] || service,
+    value: value,
+    valueType: ['voice_video', 'translate_voice'].includes(service) ? 'минут' : 
+               service === 'translate_text' ? 'символов' : 'слов',
+    price: urgent ? result.priceUrgent : result.priceNormal,
+    deadline: result.deadline ? result.deadline.text : '',
+    urgent: urgent
+  };
+  
+  // Показываем блок с выбором каналов
+  const contactHTML = `
+    <div class="calc-contact-view">
+      <div class="calc-contact-header">
+        <div class="calc-contact-title">📞 Выберите удобный способ связи</div>
+      </div>
+      
+      <div class="calc-contact-buttons">
+        <a href="https://t.me/malyutinvoice" target="_blank" class="calc-contact-btn calc-contact-telegram">
+          <i class="calc-contact-icon fab fa-telegram"></i>
+          <div class="calc-contact-info">
+            <div class="calc-contact-name">Telegram</div>
+          </div>
+        </a>
+        
+        <a href="https://wa.me/79493255256" target="_blank" class="calc-contact-btn calc-contact-whatsapp">
+          <i class="calc-contact-icon fab fa-whatsapp"></i>
+          <div class="calc-contact-info">
+            <div class="calc-contact-name">WhatsApp</div>
+          </div>
+        </a>
+        
+        <a href="https://vk.com/tonynof8" target="_blank" class="calc-contact-btn calc-contact-vk">
+          <i class="calc-contact-icon fab fa-vk"></i>
+          <div class="calc-contact-info">
+            <div class="calc-contact-name">ВКонтакте</div>
+          </div>
+        </a>
+        
+        <a href="#" class="calc-contact-btn calc-contact-email" onclick="copyEmail(); return false;">
+          <i class="calc-contact-icon fas fa-envelope"></i>
+          <div class="calc-contact-info">
+            <div class="calc-contact-name">Email</div>
+          </div>
+        </a>
+      </div>
+      
+      <button class="calc-back-button" onclick="showCalculationResult()">
+        ← Вернуться к результату расчёта
+      </button>
+    </div>
+  `;
+  
+  resultContent.innerHTML = contactHTML;
+}
+
+window.showCalculationResult = function() {
+  const resultContent = document.getElementById('calc-resultContent');
+  if (!resultContent || !window.lastCalculationResult) return;
+  
+  resultContent.innerHTML = window.lastCalculationResult;
+}
+
+// ============================================
+// КОПИРОВАНИЕ EMAIL
+// ============================================
+
+window.copyEmail = function() {
+  const email = 'i@nof8.ru';
+  
+  // Копируем email в буфер обмена
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(email).then(() => {
+      showNotification('✅ Адрес почты скопирован');
+    }).catch(() => {
+      fallbackCopyEmail(email);
+    });
+  } else {
+    fallbackCopyEmail(email);
+  }
+}
+
+// Fallback для старых браузеров
+function fallbackCopyEmail(email) {
+  const textarea = document.createElement('textarea');
+  textarea.value = email;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  textarea.style.top = '0';
+  textarea.style.left = '0';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  
+  try {
+    document.execCommand('copy');
+    showNotification('✅ Адрес почты скопирован');
+  } catch (err) {
+    alert('Email: ' + email);
+  }
+  
+  document.body.removeChild(textarea);
+}
+
+// ============================================
+// УВЕДОМЛЕНИЕ
+// ============================================
+
+function showNotification(text) {
+  // Удаляем старое уведомление если есть
+  const oldNotification = document.querySelector('.calc-notification');
+  if (oldNotification) {
+    document.body.removeChild(oldNotification);
+  }
+  
+  // Создаём элемент уведомления (только структура, БЕЗ стилей)
+  const notification = document.createElement('div');
+  notification.className = 'calc-notification';
+  notification.textContent = text;
+  
+  document.body.appendChild(notification);
+  
+  // Удаляем через 2.5 секунды
+  setTimeout(() => {
+    notification.classList.add('calc-hiding');
+    
+    setTimeout(() => {
+      if (document.body.contains(notification)) {
+        document.body.removeChild(notification);
+      }
+    }, 400); // Время анимации исчезновения
+  }, 2500);
+}
+
+console.log('✅ Встроенный выбор канала связи инициализирован');
+
+console.log('✅ Режим Файл/Текст инициализирован');
+
+console.log('✅ voiceprice.js загружен (автономная версия)');

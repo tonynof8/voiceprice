@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voiceprice | Быстрый расчет стоимости озвучки и перевода</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --calc-bg-color: #1c1c1e;
+      --calc-text-color: #FFFCF2;
+      --calc-input-bg: #2c2c2e;
+      --calc-button-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --calc-accent-color: #8b5cf6;
+      --calc-accent-light: #a78bfa;
+      --calc-radius: 12px;
+      --calc-radius-lg: 20px;
+      --calc-card-bg: rgba(44, 44, 46, 0.35);
+      --calc-card-border: rgba(255, 255, 255, 0.12);
+      --calc-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    .calc-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      position: relative;
+      font-family: 'Montserrat', sans-serif;
+      background: #1c1c1e;
+      color: var(--calc-text-color);
+    }
+
+    .calc-container * {
+      margin: 0;
+      padding: 0;
+    }
+
+    .calc-main-wrapper {
+      display: grid;
+      grid-template-columns: 600px 600px;
+      gap: 32px;
+      max-width: 1260px;
+      width: 100%;
+    }
+
+    .calc-calculator-wrapper, .calc-pricing-wrapper {
+      width: 100%;
+      min-height: 630px;
+      background: var(--calc-card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--calc-card-border);
+      border-radius: var(--calc-radius-lg);
+      box-shadow: var(--calc-card-shadow);
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+      animation: calc-fadeIn 0.6s ease;
+      height: fit-content;
+    }
+
+    .calc-pricing-wrapper {
+      animation-delay: 0.1s;
+    }
+
+    @keyframes calc-fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .calc-calculator-header, .calc-pricing-header {
+      padding: 32px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .calc-calculator-header .calc-title, .calc-pricing-header .calc-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: block;
+    }
+
+    .calc-calculator-header .calc-subtitle, .calc-pricing-header .calc-subtitle {
+      font-size: 0.95rem;
+      opacity: 0.7;
+      display: block;
+      line-height: 1.5;
+    }
+
+    .calc-calculator-body {
+      min-height: 630px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+
+    .calc-pricing-body {
+      min-height: 630px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+
+    .calc-pricing-item {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .calc-pricing-item:last-child {
+      border-bottom: none;
+    }
+
+    .calc-pricing-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+      gap: 12px;
+    }
+
+    .calc-pricing-item-title {
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.3;
+      flex: 1;
+    }
+
+    .calc-pricing-item-price {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--calc-accent-light);
+      white-space: nowrap;
+    }
+
+    .calc-pricing-item-details {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      line-height: 1.4;
+      margin-top: 2px;
+    }
+
+    .calc-drop-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(139, 92, 246, 0.95);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: var(--calc-radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+
+    .calc-drop-overlay.calc-active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .calc-drop-content {
+      text-align: center;
+      animation: calc-dropBounce 0.6s ease;
+    }
+
+    .calc-drop-icon {
+      font-size: 4rem;
+      animation: calc-floatIcon 0.8s ease-in-out infinite alternate;
+      margin-bottom: 12px;
+    }
+
+    .calc-drop-text {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    @keyframes calc-dropBounce {
+      0% { transform: scale(0.8); opacity: 0; }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes calc-floatIcon {
+      from { transform: translateY(0); }
+      to { transform: translateY(-8px); }
+    }
+
+    .calc-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .calc-input-group label {
+      font-size: 0.95rem;
+      font-weight: 600;
+      opacity: 0.9;
+      color: var(--calc-text-color);
+    }
+
+    .calc-input-with-icon {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .calc-container select, .calc-container input[type="number"] {
+      flex: 1;
+      height: 52px;
+      padding: 0 16px;
+      border-radius: var(--calc-radius);
+      background: var(--calc-input-bg);
+      color: var(--calc-text-color);
+      border: 1px solid var(--calc-card-border);
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      appearance: none;
+    }
+
+    .calc-container select {
+      background-image: url("data:image/svg+xml,%3Csvg fill='gray' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 20px;
+      cursor: pointer;
+    }
+
+    .calc-container select:focus, .calc-container input[type="number"]:focus {
+      border-color: var(--calc-accent-color);
+      outline: none;
+    }
+
+    .calc-container input[type="number"]::-webkit-outer-spin-button,
+    .calc-container input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .calc-container input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    .calc-file-wrapper {
+      display: flex;
+    }
+
+    .calc-file-wrapper.calc-hidden {
+      display: none;
+    }
+
+    .calc-file-icon {
+      width: 135px;
+      min-width: 135px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--calc-card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--calc-card-border);
+      border-radius: var(--calc-radius);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--calc-text-color);
+      position: relative;
+    }
+
+    .calc-file-icon.calc-hidden {
+      display: none;
+    }
+
+    .calc-file-icon:hover {
+      background: var(--calc-accent-color);
+      border-color: var(--calc-accent-color);
+    }
+
+    .calc-file-icon .calc-icon {
+      display: block;
+      font-size: 1.1rem;
+    }
+
+    .calc-file-icon .calc-file-text {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .calc-file-icon .calc-loader {
+      display: block;
+    }
+
+    .calc-hidden {
+      display: none !important;
+    }
+
+    .calc-loader {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid var(--calc-accent-color);
+      border-radius: 50%;
+      animation: calc-spin 0.8s linear infinite;
+    }
+
+    @keyframes calc-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .calc-urgent-toggle {
+      width: 135px;
+      min-width: 135px;
+      padding: 12px 16px;
+      height: 52px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+      border-radius: var(--calc-radius);
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .calc-urgent-toggle:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.3);
+      color: #fff;
+    }
+
+    .calc-urgent-toggle.calc-active {
+      background: #ff3b30;  /* Убираем градиент, ставим просто красный */
+      border-color: #ff3b30;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(255, 59, 48, 0.4);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .calc-urgent-toggle.calc-active:hover {
+      background: #ff3b30;
+      filter: brightness(1.1);
+    }
+
+    #calc-modeToggle.calc-active {
+      background: #8b5cf6;
+      border-color: #8b5cf6;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    #calc-modeToggle.calc-active:hover {
+      background: #8b5cf6;
+      filter: brightness(1.15);
+      box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
+    }
+    
+    #calc-modeToggle.calc-active .calc-mode-icon {
+      animation: calc-pulse 0.6s ease;
+    }
+
+    #calc-modeToggle:not(.calc-active) {
+      transition: all 0.5s ease-out;
+    }
+    
+    #calc-modeToggle:not(.calc-active) .calc-mode-icon {
+      transition: transform 0.4s ease-out;
+    }
+
+    .calc-urgent-toggle .calc-urgent-icon {
+      font-size: 1.1rem;
+      display: inline-block;
+    }
+
+    .calc-urgent-toggle.calc-active .calc-urgent-icon {
+      animation: calc-pulse 0.6s ease;
+    }
+
+    @keyframes calc-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.5); }
+    }
+
+    .calc-container button:not(.calc-urgent-toggle):not(.calc-order-button) {
+      width: 100%;
+      padding: 14px 24px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      border-radius: var(--calc-radius);
+      background: var(--calc-button-bg);
+      color: var(--calc-text-color);
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .calc-container button:not(.calc-urgent-toggle):not(.calc-order-button)::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.6s ease;
+    }
+
+    .calc-container button:not(.calc-urgent-toggle):not(.calc-order-button)::before {
+      left: 100%;
+    }
+
+    .calc-container button:not(.calc-urgent-toggle):not(.calc-order-button):hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .calc-container button:not(.calc-urgent-toggle):not(.calc-order-button):active {
+      transform: scale(0.99);
+    }
+
+    .calc-result-container {
+      background: rgba(139, 92, 246, 0.1);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: var(--calc-radius);
+      padding: 16px;
+      min-height: 350px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .calc-result-content {
+      width: 100%;
+    }
+
+    .calc-result-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+      flex-wrap: wrap;
+      animation: calc-fadeIn 0.5s ease;
+    }
+
+    .calc-result-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .calc-result-row .calc-icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .calc-result-row .calc-label {
+      font-weight: 600;
+      opacity: 0.8;
+      flex-shrink: 0;
+    }
+
+    .calc-result-row .calc-value {
+      font-weight: 700;
+      color: var(--calc-accent-light);
+    }
+
+    .calc-spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: var(--calc-accent-color);
+      border-radius: 50%;
+      animation: calc-spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+
+    .calc-tooltip-info {
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: var(--calc-text-color);
+      text-align: left;
+      animation: calc-fadeIn 0.5s ease;
+    }
+
+    .calc-tooltip-info.calc-fade-out {
+      animation: calc-fadeOut 0.3s ease forwards;
+    }
+
+    @keyframes calc-fadeOut {
+      from {
+        opacity: 0.7;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+    }
+
+    .calc-footer {
+      margin-top: 0;
+      padding: 24px 32px;
+      font-size: 14px;
+      color: var(--calc-text-color);
+      opacity: 1;
+      text-align: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    @media (max-width: 1280px) {
+      .calc-main-wrapper {
+        grid-template-columns: 1fr;
+        max-width: 600px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .calc-calculator-wrapper, .calc-pricing-wrapper {
+        background: transparent;
+        backdrop-filter: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .calc-calculator-header, .calc-pricing-header {
+        padding: 24px;
+        border-bottom: none;
+      }
+
+      .calc-calculator-header .calc-title, .calc-pricing-header .calc-title {
+        font-size: 1.4rem;
+      }
+
+      .calc-calculator-body, .calc-pricing-body {
+        padding: 24px;
+      }
+
+      .calc-calculator-wrapper .calc-footer {
+        display: none;  /* Скрываем футер калькулятора на мобилке */
+      }
+      
+      .calc-pricing-wrapper .calc-footer {
+        border-top: none;  /* Футер тарифов остаётся, убираем только border */
+      }
+
+      .calc-container select {
+        flex: 1;
+      }
+
+      .calc-urgent-toggle {
+        width: 52px;
+        min-width: 52px;
+        padding: 0;
+      }
+
+      .calc-urgent-toggle .calc-urgent-text {
+        display: none;
+      }
+
+      .calc-urgent-toggle .calc-urgent-icon {
+        font-size: 1.3rem;
+      }
+
+      #calc-modeToggle {
+        width: 52px;
+        min-width: 52px;
+        padding: 0;
+      }
+
+      #calc-modeToggle .calc-mode-text {
+        display: none;
+      }
+
+      #calc-modeToggle .calc-mode-icon {
+        font-size: 1.3rem;
+      }
+
+      .calc-file-wrapper {
+        display: flex;
+      }
+
+      .calc-file-icon {
+        width: 52px;
+        min-width: 52px;
+        padding: 0;
+      }
+
+      .calc-file-icon .calc-file-text {
+        display: none;
+      }
+
+      .calc-file-icon .calc-icon {
+        font-size: 1.3rem;
+      }
+
+      .calc-file-zone-icon {
+        font-size: 3rem;
+      }
+      
+      .calc-file-zone-title {
+        font-size: 1rem;
+      }
+      
+      .calc-text-stats {
+        flex-direction: column;
+      }
+      
+      .calc-text-stat {
+        min-width: 100%;
+      }
+    }
+
+    #calc-modeToggle.calc-hidden {
+      display: none;
+    }
+
+    @media (max-width: 480px) {
+      .calc-calculator-header .calc-title, .calc-pricing-header .calc-title {
+        font-size: 1.2rem;
+      }
+
+      .calc-calculator-body, .calc-pricing-body {
+        padding: 20px;
+        gap: 16px;
+      }
+
+      .calc-container select, .calc-container input[type="number"] {
+        font-size: 0.95rem;
+      }
+
+      .calc-container button {
+        font-size: 1rem;
+        padding: 12px 20px;
+      }
+
+      .calc-result-row {
+        font-size: 0.9rem;
+      }
+    }
+
+
+    /* ============================================ */
+    /* TOGGLE: Файл / Текст */
+    /* ============================================ */
+    
+    .calc-mode-icon {
+      font-size: 1.1rem;
+      display: inline-block;
+      transition: transform 0.3s ease;
+    }
+    
+    .calc-urgent-toggle.calc-mode-active .calc-mode-icon {
+      content: '📝';
+    }
+    
+    .calc-urgent-toggle.calc-mode-active .calc-mode-text::after {
+      content: 'Текст';
+    }
+    
+    /* ============================================ */
+    /* ЗОНА ЗАГРУЗКИ ФАЙЛА */
+    /* ============================================ */
+    
+    .calc-file-zone {
+      width: 100%;
+      min-height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .calc-file-zone-content {
+      text-align: center;
+      padding: 70px 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-radius: var(--calc-radius);
+      width: 100%;
+      animation: calc-fadeIn 0.5s ease;
+    }
+    
+    .calc-file-zone-content:hover {
+      background: rgba(139, 92, 246, 0.05);
+    }
+    
+    .calc-file-zone-icon {
+      font-size: 4rem;
+      margin-bottom: 16px;
+      animation: calc-floatIcon 2s ease-in-out infinite alternate;
+    }
+
+    .calc-tooltip-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      display: inline-block;
+      animation: calc-floatIcon 2s ease-in-out infinite alternate;
+    }
+    
+    .calc-file-zone-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--calc-text-color);
+    }
+    
+    .calc-file-zone-subtitle {
+      font-size: 0.95rem;
+      opacity: 0.7;
+      margin-bottom: 12px;
+    }
+    
+    .calc-file-zone-formats {
+      font-size: 0.85rem;
+      padding: 6px 16px;
+      background: rgba(139, 92, 246, 0.2);
+      border-radius: 20px;
+      display: inline-block;
+      color: var(--calc-accent-light);
+      font-weight: 600;
+    }
+    
+    .calc-file-zone-loader {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .calc-file-zone-loading-text {
+      margin-top: 16px;
+      font-size: 1rem;
+      color: var(--calc-text-color);
+      opacity: 0.8;
+    }
+    
+    /* ============================================ */
+    /* ЗОНА ВВОДА ТЕКСТА */
+    /* ============================================ */
+    
+    .calc-text-zone {
+      width: 100%;
+      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: calc-fadeSlideIn 0.4s ease-out;
+    }
+    
+    @keyframes calc-fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .calc-text-area {
+      flex: 1;
+      min-height: 240px;
+      padding: 16px;
+      background: var(--calc-input-bg);
+      border: 1px solid var(--calc-card-border);
+      border-radius: var(--calc-radius);
+      color: var(--calc-text-color);
+      font-size: 1rem;
+      font-family: 'Montserrat', sans-serif;
+      resize: none;
+      transition: border-color 0.2s;
+    }
+    
+    .calc-text-area:focus {
+      outline: none;
+      border-color: var(--calc-accent-color);
+    }
+    
+    .calc-text-stats {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .calc-text-stat {
+      flex: 1;
+      min-width: 140px;
+      padding: 12px 16px;
+      background: rgba(139, 92, 246, 0.1);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: var(--calc-radius);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .calc-text-stat-icon {
+      font-size: 1.3rem;
+    }
+    
+    .calc-text-stat-label {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      flex: 1;
+    }
+    
+    .calc-text-stat-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--calc-accent-light);
+    }
+    
+    /* ============================================ */
+    /* СКРЫТИЕ ЭЛЕМЕНТОВ */
+    /* ============================================ */
+    
+    .calc-file-zone.calc-hidden,
+    .calc-text-zone.calc-hidden,
+    .calc-result-content.calc-hidden {
+      display: none;
+    }
+    
+    /* ============================================ */
+    /* ВСТРОЕННЫЙ ВЫБОР КАНАЛА СВЯЗИ */
+    /* ============================================ */
+    
+    .calc-contact-view {
+      width: 100%;
+      animation: calc-fadeSlideIn 0.4s ease-out;
+    }
+    
+    .calc-contact-header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .calc-contact-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--calc-text-color);
+      margin-bottom: 8px;
+    }
+    
+    .calc-contact-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    
+    .calc-contact-btn {
+      padding: 6px 0px;
+      background: var(--calc-card-bg);
+      border: 2px solid var(--calc-card-border);
+      border-radius: var(--calc-radius);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Montserrat', sans-serif;
+      text-align: left;
+      text-decoration: none;
+      color: var(--calc-text-color);
+    }
+    
+    .calc-contact-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .calc-contact-telegram {
+      border-color: #0088cc;
+    }
+    
+    .calc-contact-telegram:hover {
+      background: rgba(0, 136, 204, 0.15);
+      border-color: #0088cc;
+    }
+    
+    .calc-contact-whatsapp {
+      border-color: #25D366;
+    }
+    
+    .calc-contact-whatsapp:hover {
+      background: rgba(37, 211, 102, 0.15);
+      border-color: #25D366;
+    }
+    
+    .calc-contact-vk {
+      border-color: #0077FF;
+    }
+    
+    .calc-contact-vk:hover {
+      background: rgba(0, 119, 255, 0.15);
+      border-color: #0077FF;
+    }
+    
+    .calc-contact-email {
+      border-color: #EA4335;
+    }
+    
+    .calc-contact-email:hover {
+      background: rgba(234, 67, 53, 0.15);
+      border-color: #EA4335;
+    }
+    
+    .calc-contact-icon {
+      padding-left: 12px;
+      font-size: 2rem;
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .calc-contact-info {
+      flex: 1;
+    }
+    
+    .calc-contact-name {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    
+    .calc-back-button {
+      width: 100%;
+      padding: 10px 16px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: var(--calc-radius);
+      color: var(--calc-text-color);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      opacity: 0.7;
+    }
+    
+    .calc-back-button:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .calc-contact-btn {
+        padding: 12px 14px;
+      }
+      
+      .calc-contact-icon {
+        font-size: 1.8rem;
+      }
+      
+      .calc-contact-name {
+        font-size: 0.95rem;
+      }
+
+      .calc-contact-buttons {
+        grid-template-columns: 1fr;
+      }
+      
+    }
+
+    /* ============================================ */
+    /* КНОПКА "ЗАКАЗАТЬ ОЗВУЧКУ" */
+    /* ============================================ */
+    
+    .calc-order-button {
+      width: 100%;
+      padding: 14px 24px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      border-radius: var(--calc-radius);
+      background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+      color: var(--calc-text-color);
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .calc-order-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.6s ease;
+    }
+    
+    .calc-order-button:hover::before {
+      left: 100%;
+    }
+    
+    .calc-order-button:hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px) scale(1.01);
+    }
+    
+    .calc-order-button:active {
+      transform: scale(0.99);
+    }
+
+/* ============================================ */
+    /* УВЕДОМЛЕНИЕ */
+    /* ============================================ */
+    
+    .calc-notification {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+      z-index: 99999;
+      pointer-events: none;
+      animation: calc-notificationSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    .calc-notification.calc-hiding {
+      animation: calc-notificationSlideDown 0.4s ease-out forwards;
+    }
+    
+    @keyframes calc-notificationSlideUp {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(30px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+      }
+    }
+    
+    @keyframes calc-notificationSlideDown {
+      from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(30px) scale(0.95);
+      }
+    }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .calc-notification {
+        bottom: 20px;
+        max-width: calc(100% - 40px);
+        font-size: 0.9rem;
+        padding: 12px 20px;
+      }
+    }
+
+/* ============================================ */
+    /* КНОПКА "НА ГЛАВНУЮ" */
+    /* ============================================ */
+    
+    .calc-back-home {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: var(--calc-card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--calc-card-border);
+      border-radius: var(--calc-radius);
+      color: var(--calc-text-color);
+      text-decoration: none;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+      opacity: 0.9;
+    }
+    
+    .calc-back-home:hover {
+      opacity: 1;
+      transform: translateX(-4px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
+      border-color: var(--calc-accent-color);
+    }
+    
+    .calc-back-home svg {
+      width: 18px;
+      height: 18px;
+      transition: transform 0.3s ease;
+    }
+    
+    .calc-back-home:hover svg {
+      transform: translateX(-3px);
+    }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .calc-back-home {
+        top: 16px;
+        left: 16px;
+        padding: 10px 16px;
+        font-size: 0.85rem;
+      }
+      
+      .calc-back-home svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+
+  </style>
+</head>
+<body>
+  <a href="index.html" class="calc-back-home">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+    <span>На главную</span>
+  </a>
+
+  <div class="calc-container">
+    <div class="calc-main-wrapper">
+      <!-- Калькулятор -->
+      <div class="calc-calculator-wrapper">
+        <div class="calc-drop-overlay" id="calc-dropOverlay">
+          <div class="calc-drop-content">
+            <div class="calc-drop-icon">📄</div>
+            <div class="calc-drop-text">Отпустите файл для загрузки</div>
+          </div>
+        </div>
+
+        <div class="calc-calculator-header">
+          <span class="calc-title">🎙️ Калькулятор стоимости</span>
+          <span class="calc-subtitle">Перетащите текстовый документ или введите данные вручную</span>
+        </div>
+
+        <div class="calc-calculator-body">
+          <div class="calc-input-group">
+            <label for="calc-serviceSelect">Выберите услугу</label>
+            <div class="calc-input-with-icon">
+              <select id="calc-serviceSelect">
+                <option value="voice_text">Озвучка текста</option>
+                <option value="voice_video">Озвучка видео</option>
+                <option value="translate_text">Перевод текста</option>
+                <option value="translate_voice">Перевод + озвучка видео</option>
+                <option value="voice_camera">Озвучка текста на камеру</option>
+              </select>
+
+              <button type="button" id="calc-urgentToggle" class="calc-urgent-toggle" onclick="calcToggleUrgent()">
+                <span class="calc-urgent-icon">⚡</span>
+                <span class="calc-urgent-text">СРОЧНО</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="calc-input-group">
+            <label for="calc-manualInput">Количество</label>
+            <div class="calc-input-with-icon">
+              <input type="number" id="calc-manualInput" placeholder="Введите количество слов" />
+          
+              <!-- TOGGLE: Файл / Текст -->
+              <button type="button" id="calc-modeToggle" class="calc-urgent-toggle" onclick="calcToggleMode()">
+                <span class="calc-mode-icon">📝</span>
+                <span class="calc-mode-text">ТЕКСТ</span>
+              </button>
+          
+              <input type="file" id="calc-fileInput" accept=".txt,.docx" style="display: none;" />
+            </div>
+          </div>
+
+          <button onclick="calcCalculate()">Рассчитать стоимость</button>
+
+          <div id="calc-result">
+            <div class="calc-result-container">
+              <!-- РЕЖИМ ФАЙЛА: Drag & Drop зона -->
+              <div id="calc-fileZone" class="calc-file-zone">
+                <div class="calc-file-zone-content" onclick="document.getElementById('calc-fileInput').click()">
+                  <div class="calc-file-zone-icon">📄</div>
+                  <div class="calc-file-zone-title">Перетащите текстовый файл сюда</div>
+                  <div class="calc-file-zone-subtitle">или нажмите для выбора</div>
+                  <div class="calc-file-zone-formats">txt, docx</div>
+                </div>
+                <div class="calc-file-zone-loader calc-hidden">
+                  <div class="calc-spinner"></div>
+                  <div class="calc-file-zone-loading-text">Обработка файла...</div>
+                </div>
+              </div>
+          
+              <!-- РЕЖИМ ТЕКСТА: Textarea -->
+              <div id="calc-textZone" class="calc-text-zone calc-hidden">
+                <textarea 
+                  id="calc-textArea" 
+                  class="calc-text-area" 
+                  placeholder="Вставьте или введите текст для подсчёта слов и символов..."
+                ></textarea>
+                <div class="calc-text-stats">
+                  <div class="calc-text-stat">
+                    <span class="calc-text-stat-icon">📄</span>
+                    <span class="calc-text-stat-label">Слов:</span>
+                    <span id="calc-textWordCount" class="calc-text-stat-value">0</span>
+                  </div>
+                  <div class="calc-text-stat">
+                    <span class="calc-text-stat-icon">📝</span>
+                    <span class="calc-text-stat-label">Символов:</span>
+                    <span id="calc-textCharCount" class="calc-text-stat-value">0</span>
+                  </div>
+                </div>
+              </div>
+          
+              <!-- РЕЗУЛЬТАТ (показывается после расчёта) -->
+              <div id="calc-resultContent" class="calc-result-content calc-hidden">
+                <div class="calc-tooltip-info" id="calc-tooltipText">⚡ Загрузите txt или docx...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="calc-footer">
+          © Антон Малютин (malyutinVOICE), 2025
+        </footer>
+      </div>
+
+      <!-- Тарифы -->
+      <div class="calc-pricing-wrapper">
+        <div class="calc-pricing-header">
+          <span class="calc-title">💰 Стоимость и тарифы</span>
+          <span class="calc-subtitle">Стоимость озвучки, дубляжа и перевода.</span>
+        </div>
+
+        <div class="calc-pricing-body">
+          <div class="calc-pricing-item">
+            <div class="calc-pricing-item-header">
+              <div class="calc-pricing-item-title">Озвучка рекламы, shorts, tiktok</div>
+              <div class="calc-pricing-item-price">500 ₽</div>
+            </div>
+            <div class="calc-pricing-item-details">1 текст до 120 слов (~ 1 минута) • 500 ₽ / 1 текст</div>
+          </div>
+
+          <div class="calc-pricing-item">
+            <div class="calc-pricing-item-header">
+              <div class="calc-pricing-item-title">Дубляж</div>
+              <div class="calc-pricing-item-price">500 ₽</div>
+            </div>
+            <div class="calc-pricing-item-details">до 60 слов (~ 30 секунд) • 1000 ₽ / 1 минута</div>
+          </div>
+          
+          <div class="calc-pricing-item">
+            <div class="calc-pricing-item-header">
+              <div class="calc-pricing-item-title">Озвучка текста</div>
+              <div class="calc-pricing-item-price">500 ₽</div>
+            </div>
+            <div class="calc-pricing-item-details">до 240 слов (~ 2 минуты) • 250 ₽ / 1 минута</div>
+          </div>
+
+          <div class="calc-pricing-item">
+            <div class="calc-pricing-item-header">
+              <div class="calc-pricing-item-title">Озвучка длинного текста</div>
+              <div class="calc-pricing-item-price">2000 ₽</div>
+            </div>
+            <div class="calc-pricing-item-details">до 1200 слов и выше (~ 10 минут) • 200 ₽ / 1 минута</div>
+          </div>
+
+          <div class="calc-pricing-item">
+            <div class="calc-pricing-item-header">
+              <div class="calc-pricing-item-title">Озвучка XXXL текста</div>
+              <div class="calc-pricing-item-price">2900 ₽</div>
+            </div>
+            <div class="calc-pricing-item-details">до 2040 слов и выше (~ 17 минут) • 167 ₽ / 1 минута</div>
+          </div>
+
+          <div class="calc-pricing-item">
+            <div class="calc-pricing-item-header">
+              <div class="calc-pricing-item-title">Озвучка видео с синхронизацией</div>
+              <div class="calc-pricing-item-price">500 ₽</div>
+            </div>
+            <div class="calc-pricing-item-details">до 2 минут длительности видео • 250 ₽ / 1 минута</div>
+          </div>
+
+          <div class="calc-pricing-item">
+            <div class="calc-pricing-item-header">
+              <div class="calc-pricing-item-title">Перевод и озвучка видео</div>
+              <div class="calc-pricing-item-price">900 ₽</div>
+            </div>
+            <div class="calc-pricing-item-details">до 2 минут длительности видео • 450 ₽ / 1 минута</div>
+          </div>
+
+          <div class="calc-pricing-item">
+            <div class="calc-pricing-item-header">
+              <div class="calc-pricing-item-title">Озвучка на камеру "Говорящая голова"</div>
+              <div class="calc-pricing-item-price">6000 ₽</div>
+            </div>
+            <div class="calc-pricing-item-details">до 600 слов (~ 5 минут) • 1000 ₽ / 1 минута</div>
+          </div>
+        </div>
+
+        <footer class="calc-footer">
+          Все цены актуальны по состоянию на <span id="calc-currentDate"></span>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="pricing.js"></script>
+  <script src="voiceprice.js"></script>
+  <script>
+    // Вставка текущей даты
+    const calcCurrentDate = new Date();
+    const calcMonths = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    const calcDateString = `${calcCurrentDate.getDate()} ${calcMonths[calcCurrentDate.getMonth()]} ${calcCurrentDate.getFullYear()} года`;
+    document.getElementById('calc-currentDate').textContent = calcDateString;
+  </script>
+</body>
+</html>
