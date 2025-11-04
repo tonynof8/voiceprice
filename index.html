@@ -371,7 +371,7 @@
     }
 
     .calc-urgent-toggle.calc-active {
-      background: #ff3b30;  /* Убираем градиент, ставим просто красный */
+      background: #ff3b30;
       border-color: #ff3b30;
       color: #fff;
       box-shadow: 0 4px 12px rgba(255, 59, 48, 0.4);
@@ -584,11 +584,11 @@
       }
 
       .calc-calculator-wrapper .calc-footer {
-        display: none;  /* Скрываем футер калькулятора на мобилке */
+        display: none;
       }
       
       .calc-pricing-wrapper .calc-footer {
-        border-top: none;  /* Футер тарифов остаётся, убираем только border */
+        border-top: none;
       }
 
       .calc-container select {
@@ -685,11 +685,6 @@
         font-size: 0.9rem;
       }
     }
-
-
-    /* ============================================ */
-    /* TOGGLE: Файл / Текст */
-    /* ============================================ */
     
     .calc-mode-icon {
       font-size: 1.1rem;
@@ -704,10 +699,6 @@
     .calc-urgent-toggle.calc-mode-active .calc-mode-text::after {
       content: 'Текст';
     }
-    
-    /* ============================================ */
-    /* ЗОНА ЗАГРУЗКИ ФАЙЛА */
-    /* ============================================ */
     
     .calc-file-zone {
       width: 100%;
@@ -779,10 +770,6 @@
       color: var(--calc-text-color);
       opacity: 0.8;
     }
-    
-    /* ============================================ */
-    /* ЗОНА ВВОДА ТЕКСТА */
-    /* ============================================ */
     
     .calc-text-zone {
       width: 100%;
@@ -857,19 +844,11 @@
       color: var(--calc-accent-light);
     }
     
-    /* ============================================ */
-    /* СКРЫТИЕ ЭЛЕМЕНТОВ */
-    /* ============================================ */
-    
     .calc-file-zone.calc-hidden,
     .calc-text-zone.calc-hidden,
     .calc-result-content.calc-hidden {
       display: none;
     }
-    
-    /* ============================================ */
-    /* ВСТРОЕННЫЙ ВЫБОР КАНАЛА СВЯЗИ */
-    /* ============================================ */
     
     .calc-contact-view {
       width: 100%;
@@ -995,7 +974,6 @@
       border-color: rgba(255, 255, 255, 0.3);
     }
     
-    /* Mobile */
     @media (max-width: 768px) {
       .calc-contact-btn {
         padding: 12px 14px;
@@ -1014,10 +992,6 @@
       }
       
     }
-
-    /* ============================================ */
-    /* КНОПКА "ЗАКАЗАТЬ ОЗВУЧКУ" */
-    /* ============================================ */
     
     .calc-order-button {
       width: 100%;
@@ -1058,10 +1032,6 @@
     .calc-order-button:active {
       transform: scale(0.99);
     }
-
-/* ============================================ */
-    /* УВЕДОМЛЕНИЕ */
-    /* ============================================ */
     
     .calc-notification {
       position: fixed;
@@ -1107,7 +1077,6 @@
       }
     }
     
-    /* Mobile */
     @media (max-width: 768px) {
       .calc-notification {
         bottom: 20px;
@@ -1116,10 +1085,6 @@
         padding: 12px 20px;
       }
     }
-
-/* ============================================ */
-    /* КНОПКА "НА ГЛАВНУЮ" */
-    /* ============================================ */
     
     .calc-back-home {
       position: fixed;
@@ -1162,7 +1127,6 @@
       transform: translateX(-3px);
     }
     
-    /* Mobile */
     @media (max-width: 768px) {
       .calc-back-home {
         top: 16px;
