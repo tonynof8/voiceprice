@@ -103,7 +103,7 @@ function calculateTextPrice(words) {
   } else if (minutes <= 16) {
     raw = minutes * 200;
   } else {
-    raw = minutes * 167;
+    raw = minutes * 200;
   }
   
   return roundToHundred(raw);
@@ -120,7 +120,7 @@ function calculateVideoPrice(minutes) {
   } else if (minutes <= 10) {
     raw = minutes * 200;
   } else {
-    raw = minutes * 167;
+    raw = minutes * 200;
   }
   
   return roundToHundred(raw);
