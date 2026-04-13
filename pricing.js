@@ -116,9 +116,9 @@ function calculateVideoPrice(minutes) {
   if (minutes <= 2) {
     return 500;
   } else if (minutes <= 5) {
-    raw = minutes * 250;
+    raw = minutes * 300;
   } else if (minutes <= 10) {
-    raw = minutes * 200;
+    raw = minutes * 250;
   } else {
     raw = minutes * 200;
   }
@@ -133,7 +133,7 @@ function calculateTranslateTextPrice(chars) {
 
 function calculateTranslateVoicePrice(minutes) {
   minutes = Math.ceil(minutes);
-  const translatePrice = minutes * 200;
+  const translatePrice = minutes * 150;
   const voicePrice = calculateVideoPrice(minutes);
   return roundToHundred(translatePrice + voicePrice);
 }
