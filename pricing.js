@@ -106,7 +106,7 @@ function calculateTextPrice(words) {
     raw = words * (200 / 120);
   }
   
-  return roundToHundred(raw);
+  return raw;
 }
 
 function calculateVideoPrice(minutes) {
