@@ -386,12 +386,7 @@ function calculate() {
           </div>
           <div class="calc-result-row">
             <span class="calc-icon">🕑</span>
-            <span class="calc-label">До:</span>
-            <span class="calc-value">${result.durationMinutes} минут</span>
-          </div>
-          <div class="calc-result-row">
-            <span class="calc-icon">🎯</span>
-            <span class="calc-label">Оптимальный хронометраж:</span>
+            <span class="calc-label">Хронометраж:</span>
             <span class="calc-value">${result.optimalTiming}</span>
           </div>
         `;
