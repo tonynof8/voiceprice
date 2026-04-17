@@ -123,7 +123,7 @@ function calculateVideoPrice(minutes) {
     raw = minutes * 200;
   }
   
-  return roundToHundred(raw);
+  return raw;
 }
 
 function calculateTranslateTextPrice(chars) {
