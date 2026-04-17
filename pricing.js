@@ -95,15 +95,15 @@ function roundToHundred(value, minimum = 500) {
 }
 
 function calculateTextPrice(words) {
-  const minutes = Math.ceil(words / 120);
+  const minutes = words / 120; // без округления — для выбора тарифа тоже
   let raw;
   
   if (minutes <= 8) {
-    raw = minutes * 250;
+    raw = words * (250 / 120);
   } else if (minutes <= 16) {
-    raw = minutes * 200;
+    raw = words * (200 / 120);
   } else {
-    raw = minutes * 200;
+    raw = words * (200 / 120);
   }
   
   return roundToHundred(raw);
