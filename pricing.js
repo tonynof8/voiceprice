@@ -259,8 +259,8 @@ function pluralizeDay(n) {
 }
 
 function getOptimalTiming(words) {
-  const secondsMin = words * (60 / 185);
-  const secondsMax = words * (60 / 135);
+  const secondsMin = words * (60 / 180);
+  const secondsMax = words * (60 / 130);
 
   const minMinutes = Math.floor(secondsMin / 60);
   const minSecs = Math.floor(secondsMin % 60);
