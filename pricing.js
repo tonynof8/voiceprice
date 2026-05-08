@@ -260,17 +260,16 @@ function pluralizeDay(n) {
 
 function getOptimalTiming(words) {
   const secondsMin = words * (60 / 180);
-  const secondsMax = words * (60 / 130);
+  const secondsMax = words * (60 / 120);
 
   const minMinutes = Math.floor(secondsMin / 60);
   const minSecs = Math.floor(secondsMin % 60);
 
   const maxMinutes = Math.floor(secondsMax / 60);
-  const maxSecs = Math.floor(secondsMax % 60);
 
   const fmt = (m, s) => `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 
-  return `${fmt(minMinutes, minSecs)} – ${fmt(maxMinutes, maxSecs)}`;
+  return `${fmt(minMinutes, minSecs)} – ${String(maxMinutes).padStart(2, '0')}:00`;
 }
 
 function calculatePrice(service, value, isUrgent = false) {
