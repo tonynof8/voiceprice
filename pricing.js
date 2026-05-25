@@ -120,7 +120,7 @@ function calculateVideoPrice(minutes) {
   } else if (minutes <= 10) {
     raw = minutes * 250;
   } else {
-    raw = minutes * 200;
+    raw = minutes * 232;
   }
   
   return raw;
